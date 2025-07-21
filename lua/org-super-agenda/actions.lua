@@ -1,4 +1,5 @@
 -- org-super-agenda.actions ---------------------------------------------------
+local utils = require('org-super-agenda.utils')
 local A = {}
 local get_cfg = require('org-super-agenda.config').get
 
@@ -140,6 +141,8 @@ function A.set_keymaps(buf, win, line_map, reopen)
       end
     end)
   end, { buffer = buf, silent = true })
+
+vim.keymap.set('n', 'g?', utils.show_help, { buffer = buf, silent = true })
 
 end
 

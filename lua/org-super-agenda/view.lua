@@ -16,6 +16,16 @@ function V.render(groups, cursor)
   -- rows, hls, map ---------------------------------------------------------
   local rows, hls, line_map = layout.build(groups, win_w)
 
+  -------------------------------------------------------------------------
+  -- ⓘ  Show help -------------------------------------------
+  -------------------------------------------------------------------------
+  local hint                = '🔍  g? for help'
+  rows[#rows + 1]           = ''
+  local hint_ln             = #rows + 1
+  rows[hint_ln]             = hint
+  -- hellgrau einfärben
+  hls[#hls + 1]             = { hint_ln - 1, 0, -1, 'Comment' }
+
   -- Buffer / Window --------------------------------------------------------
   local buf                 = vim.api.nvim_create_buf(false, true)
   local pad                 = {}
@@ -31,9 +41,9 @@ function V.render(groups, cursor)
       h[3] == -1 and -1 or left + h[3]
     )
   end
-  vim.api.nvim_buf_set_option(buf, 'filetype', 'org')
-  vim.api.nvim_buf_set_name(buf, 'Org Super Agenda')
-  vim.api.nvim_buf_set_option(buf, 'modifiable', false)
+  vim.bo[buf].filetype = 'org'
+  vim.api.nvim_buf_set_name(buf, get_cfg().window.title)
+  vim.bo[buf].modifiable = false
 
   local h   = math.floor(ui.height * cfg.window.height)
   local w   = win_w + left + right
@@ -62,6 +72,7 @@ function V.render(groups, cursor)
       pcall(vim.api.nvim_win_set_cursor, win, cursor)
     end)
   end
+
 end
 
 return V
