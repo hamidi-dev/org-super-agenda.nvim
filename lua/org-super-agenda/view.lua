@@ -110,12 +110,12 @@ function V.render(groups, initial_cursor_pos)
       table.insert(hls, { hdr - 1, 0, -1, 'OrgSA_Group' })
 
       for _, it in ipairs(grp.items) do
-        local indent = string.rep(' ', it.level)
-        local pri    = (it.priority and it.priority ~= '') and ('[#' .. it.priority .. ']') or nil
+        local indent      = string.rep(' ', it.level)
+        local pri         = (it.priority and it.priority ~= '') and ('[#' .. it.priority .. ']') or nil
 
-        local sched_label   = cfg.short_date_labels and 'S' or 'SCHEDULED'
-        local dead_label    = cfg.short_date_labels and 'D' or 'DEADLINE'
-        local meta          = {}
+        local sched_label = cfg.short_date_labels and 'S' or 'SCHEDULED'
+        local dead_label  = cfg.short_date_labels and 'D' or 'DEADLINE'
+        local meta        = {}
         if it.scheduled then table.insert(meta, sched_label .. ': <' .. tostring(it.scheduled) .. '>') end
         if it.deadline then table.insert(meta, dead_label .. ':  <' .. tostring(it.deadline) .. '>') end
         local meta_str = table.concat(meta, ' ')
@@ -268,6 +268,78 @@ function V.render(groups, initial_cursor_pos)
     end
   end
 
+  -------------------------------------------------------------------------
+  -- 🔄  Change SCHEDULED date in place (opens org‑mode datepicker)
+  local function reschedule()
+    local cur  = vim.api.nvim_win_get_cursor(0)
+    local item = line_map[cur[1]]
+    if not (item and item.file and item._src_line) then
+      vim.notify('Kein Eintrag unter dem Cursor', vim.log.levels.WARN)
+      return
+    end
+
+    local agenda_buf = vim.api.nvim_get_current_buf()
+
+    local ok, api_root = pcall(require, 'orgmode.api')
+    if not ok then return end
+    local org_api = api_root.load and api_root or api_root.org
+    local file    = org_api.load(item.file) -- liefert File oder {File}
+    if vim.islist(file) then file = file[1] end
+    if not (file and file.get_headline_on_line) then return end
+
+    local hl = file:get_headline_on_line(item._src_line)
+    if not hl then return end
+
+    hl:set_scheduled()
+        :next(function()
+          vim.schedule(function()
+            if vim.api.nvim_buf_is_valid(agenda_buf) then
+              pcall(vim.api.nvim_buf_delete, agenda_buf, { force = true })
+            end
+            require('org-super-agenda').open(cur) -- Cursor bleibt grob gleich
+          end)
+        end)
+  end
+
+  local km = get_cfg().keymaps.reschedule
+  vim.keymap.set('n', km, reschedule, { buffer = buf, silent = true })
+
+  -- Change DEADLINE date in place (opens org‑mode datepicker)
+  local function set_deadline()
+    local cur  = vim.api.nvim_win_get_cursor(0)
+    local item = line_map[cur[1]]
+    if not (item and item.file and item._src_line) then
+      vim.notify('Kein Eintrag unter dem Cursor', vim.log.levels.WARN)
+      return
+    end
+
+    local agenda_buf = vim.api.nvim_get_current_buf()
+
+    local ok, api_root = pcall(require, 'orgmode.api')
+    if not ok then return end
+    local org_api = api_root.load and api_root or api_root.org
+    local file    = org_api.load(item.file)
+    if vim.islist(file) then file = file[1] end
+    if not (file and file.get_headline_on_line) then return end
+
+    local hl = file:get_headline_on_line(item._src_line)
+    if not hl then return end
+
+    hl:set_deadline()
+        :next(function()
+          vim.schedule(function()
+            if vim.api.nvim_buf_is_valid(agenda_buf) then
+              pcall(vim.api.nvim_buf_delete, agenda_buf, { force = true })
+            end
+            require('org-super-agenda').open(cur)
+          end)
+        end)
+  end
+
+  local dk = get_cfg().keymaps.set_deadline
+  vim.keymap.set('n', dk, set_deadline, { buffer = buf, silent = true })
+
+
   vim.keymap.set('n', '<CR>', jump, { buffer = buf, silent = true })
   for _, k in ipairs({ 'q', '<Esc>' }) do
     vim.keymap.set('n', k, wipe, { buffer = buf, silent = true })
@@ -284,7 +356,7 @@ function V.render(groups, initial_cursor_pos)
     end
   end
 
-  local reset = get_cfg().filter_reset_keymap
+  local reset = get_cfg().keymaps.filter_reset
   if reset and type(reset) == 'string' then
     vim.keymap.set('n', reset, function()
       wipe()

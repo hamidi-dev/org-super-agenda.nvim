@@ -3,9 +3,13 @@ local M = {}
 M.defaults = {
   ---------------------------------------------------------------------------
   -- where to look for org files
-  org_files           = {}, -- explicit file paths
-  org_directories     = {}, -- recurse for *.org
-  filter_reset_keymap = 'oa',
+  org_files           = {},  -- explicit file paths
+  org_directories     = {},  -- recurse for *.org
+  keymaps             = {
+    filter_reset = 'oa',     -- reset all filters
+    reschedule   = 'cs',     -- change SCHEDULED date of item under cursor
+    set_deadline = 'cd',     -- change DEADLINE date of item under cursor
+  },
 
   ---------------------------------------------------------------------------
   todo_states         = {
@@ -42,7 +46,7 @@ M.defaults = {
   ---------------------------------------------------------------------------
   -- NOTE: group specification. Order matters!. First matcher wins!
   groups              = {
-    { name = "📅 Today",       matcher = function(i) return i.scheduled and i.scheduled:is_today() end },
+    { name = "📅 Today", matcher = function(i) return i.scheduled and i.scheduled:is_today() end },
     { name = "🗓️ Tomorrow", matcher = function(i) return i.scheduled and i.scheduled:days_from_today() == 1 end, },
     -- { name = "⏰ Deadlines", matcher = function(i) return i.deadline ~= nil end },
     {
@@ -69,7 +73,7 @@ M.defaults = {
       end
     },
     { name = "🏠 Personal", matcher = function(item) return item:has_tag("personal") end },
-    { name = "💼 Work",     matcher = function(item) return item:has_tag("work") end },
+    { name = "💼 Work", matcher = function(item) return item:has_tag("work") end },
     {
       name = "📆 Upcoming",
       matcher = function(it)

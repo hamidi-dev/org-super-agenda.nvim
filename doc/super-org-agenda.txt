@@ -12,7 +12,8 @@ USAGE                                                           *org-super-agend
         Opens the agenda window.  Use <CR> on a headline to jump to the
         source location.  Use `q` or <Esc> to close the window.
         Press the keymap defined for a TODO state to filter by it and
-        `a` to reset the filter.
+        `oa` to reset the filter.  Use `cs` to reschedule or `cd` to
+        set a deadline for the item under the cursor.
 
 ===============================================================================
 CONFIGURATION                                                   *org-super-agenda-setup*
@@ -65,6 +66,12 @@ The defaults (see |lua/org-super-agenda/config.lua|) are:
   org_files           = {}, -- explicit file paths
   org_directories     = {}, -- recurse for *.org
 
+  keymaps             = {
+    filter_reset = 'oa',
+    reschedule   = 'cs',
+    set_deadline = 'cd',
+  },
+
   todo_states         = {
     {
       name           = 'TODO',
@@ -95,8 +102,6 @@ The defaults (see |lua/org-super-agenda/config.lua|) are:
       fields         = { 'filename', 'todo', 'headline', 'priority', 'date', 'tags' },
     },
   },
-
-  filter_reset_keymap = 'oa',
 
   groups              = {
     { name = "📅 Today", matcher = function(i) return i.scheduled and i.scheduled:is_today() end },

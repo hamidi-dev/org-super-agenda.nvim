@@ -11,7 +11,8 @@ A Neovim plugin inspired by [org-super-agenda](https://github.com/alphapapa/org-
 - Smart groups: Today, Overdue, Upcoming … fully user‑defined  
   - Group org items by priority, tags, scheduled dates, deadlines, etc.  
 - Per‑state colors & strike‑through; highlight just the parts you care about  
-- Quick filtering by TODO state with per-state keymaps (press `oa` to show all)  
+- Quick filtering by TODO state with per-state keymaps (press `oa` to show all)
+- Change the SCHEDULED date with `cs` or set a DEADLINE with `cd`
 - Press `<CR>` on an agenda item to view its source headline in the same floating window and return to the agenda when that file is closed  
 - Customize the order of filename, dates, TODO keywords and other parts of each heading  
 
@@ -62,7 +63,11 @@ return {
           fields         = { 'filename', 'todo', 'headline', 'priority', 'date', 'tags' },
         },
       },
-      filter_reset_keymap = 'oa',
+      keymaps = {
+        filter_reset = 'oa',
+        reschedule   = 'cs',
+        set_deadline = 'cd',
+      },
       window           = {
         width        = 0.8,
         height       = 0.7,
