@@ -3,12 +3,18 @@ local M = {}
 M.defaults = {
   ---------------------------------------------------------------------------
   -- where to look for org files
-  org_files           = {},  -- explicit file paths
-  org_directories     = {},  -- recurse for *.org
+  org_files           = {},   -- explicit file paths
+  org_directories     = {},   -- recurse for *.org
   keymaps             = {
-    filter_reset = 'oa',     -- reset all filters
-    reschedule   = 'cs',     -- change SCHEDULED date of item under cursor
-    set_deadline = 'cd',     -- change DEADLINE date of item under cursor
+    filter_reset   = 'oa',    -- reset all filters
+    reschedule     = 'cs',    -- change SCHEDULED date of item under cursor
+    set_deadline   = 'cd',    -- change DEADLINE date of item under cursor
+    priority_up    = '+',     -- Increase priority by one level (C→B→A)
+    priority_down  = '-',     -- Decrease priority by one level (A→B→C→none)
+    priority_clear = '0',     -- Remove priority entirely
+    priority_A     = 'A',     -- Set directly to [#A]
+    priority_B     = 'B',     -- Set directly to [#B]
+    priority_C     = 'C',     -- Set directly to [#C]
   },
 
   ---------------------------------------------------------------------------

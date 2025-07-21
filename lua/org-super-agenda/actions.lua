@@ -83,6 +83,64 @@ function A.set_keymaps(buf, win, line_map, reopen)
       end)
     end)
   end, { buffer = buf, silent = true })
+
+  ------------------------------------------------------------------------
+  -- Priorities ---------------------------------------------------------
+  local function refresh_agenda(cur, agendabuf)
+    vim.schedule(function()
+      if vim.api.nvim_buf_is_valid(agendabuf) then
+        pcall(vim.api.nvim_buf_delete, agendabuf, { force = true })
+      end
+      require('org-super-agenda').open(cur)
+    end)
+  end
+
+  -- set_priority("A"/"B"/"C"/"") -------------------
+  local function make_set_priority(prio)
+    return function()
+      with_headline(line_map, function(cur, hl)
+        local agendabuf = vim.api.nvim_get_current_buf()
+        local p         = hl:set_priority(prio)
+        if p and type(p.next) == 'function' then
+          p:next(function() refresh_agenda(cur, agendabuf) end)
+        else
+          refresh_agenda(cur, agendabuf)
+        end
+      end)
+    end
+  end
+
+  -- Setter ------------------------------------------------------
+  vim.keymap.set('n', cfg.keymaps.priority_A or 'cA', make_set_priority('A'), { buffer = buf, silent = true })
+  vim.keymap.set('n', cfg.keymaps.priority_B or 'cB', make_set_priority('B'), { buffer = buf, silent = true })
+  vim.keymap.set('n', cfg.keymaps.priority_C or 'cC', make_set_priority('C'), { buffer = buf, silent = true })
+  vim.keymap.set('n', cfg.keymaps.priority_clear or 'c0', make_set_priority(''), { buffer = buf, silent = true })
+
+  -- step‑wise up / down --------------------------------------------
+  vim.keymap.set('n', cfg.keymaps.priority_up or 'c+', function()
+    with_headline(line_map, function(cur, hl)
+      local agendabuf = vim.api.nvim_get_current_buf()
+      local p         = hl:priority_up()
+      if p and type(p.next) == 'function' then
+        p:next(function() refresh_agenda(cur, agendabuf) end)
+      else
+        refresh_agenda(cur, agendabuf)
+      end
+    end)
+  end, { buffer = buf, silent = true })
+
+  vim.keymap.set('n', cfg.keymaps.priority_down or 'c-', function()
+    with_headline(line_map, function(cur, hl)
+      local agendabuf = vim.api.nvim_get_current_buf()
+      local p         = hl:priority_down()
+      if p and type(p.next) == 'function' then
+        p:next(function() refresh_agenda(cur, agendabuf) end)
+      else
+        refresh_agenda(cur, agendabuf)
+      end
+    end)
+  end, { buffer = buf, silent = true })
+
 end
 
 return A
