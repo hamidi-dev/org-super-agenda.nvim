@@ -68,6 +68,7 @@ function U.show_help()
       lines[#lines + 1] = fmt(st.keymap, 'Show only ' .. st.name)
     end
   end
+  lines[#lines + 1] = fmt(km.filter, 'Filter headlines')
   lines[#lines + 1] = fmt(km.filter_reset, 'Reset all filters')
 
   if any_filter then lines[#lines + 1] = '' end

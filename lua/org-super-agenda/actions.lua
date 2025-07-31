@@ -213,9 +213,53 @@ function A.set_keymaps(buf, win, line_map, reopen)
   if cfg.keymaps.filter_reset and cfg.keymaps.filter_reset ~= '' then
     vim.keymap.set('n', cfg.keymaps.filter_reset, function()
       local cur = vim.api.nvim_win_get_cursor(0)
-      -- passing nil removes the todo filter stored in the module
-      require('org-super-agenda').refresh(cur, { todo_filter = nil })
+      -- passing nil removes the filters stored in the module
+      require('org-super-agenda').refresh(cur, { todo_filter = nil, headline_filter = nil })
     end, { buffer = buf, silent = true })
+  end
+
+  local function live_filter(fuzzy)
+    local cur   = vim.api.nvim_win_get_cursor(0)
+    local query = ''
+
+    local function apply()
+      require('org-super-agenda').refresh(cur, {
+        headline_filter = query,
+        headline_fuzzy  = fuzzy,
+      })
+      vim.api.nvim_echo({ { 'Filter: ' .. query } }, false, {})
+      vim.cmd('redraw')
+    end
+
+    vim.api.nvim_echo({ { 'Filter: ' } }, false, {})
+    while true do
+      local ok, c = pcall(vim.fn.getcharstr)
+      if not ok then break end
+
+      -- handle escape
+      if c == '\027' or c == '\013' then break end
+
+      -- handle backspace
+      local bs = vim.api.nvim_replace_termcodes('<BS>', true, false, true)
+      if c == '\008' or c == '\127' or c == bs then
+        query = query:sub(1, -2)
+      else
+        query = query .. c
+      end
+      apply()
+    end
+    vim.api.nvim_echo({}, false, {})
+  end
+
+
+  if cfg.keymaps.filter and cfg.keymaps.filter ~= '' then
+    vim.keymap.set('n', cfg.keymaps.filter, function() live_filter(false) end,
+      { buffer = buf, silent = true, nowait = true })
+  end
+
+  if cfg.keymaps.filter_fuzzy and cfg.keymaps.filter_fuzzy ~= '' then
+    vim.keymap.set('n', cfg.keymaps.filter_fuzzy, function() live_filter(true) end,
+      { buffer = buf, silent = true, nowait = true })
   end
 
   if cfg.keymaps.preview and cfg.keymaps.preview ~= '' then

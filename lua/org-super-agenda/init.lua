@@ -42,6 +42,40 @@ local function build_items(opts)
       items = filtered
     end
   end
+
+  if opts.headline_filter and opts.headline_filter ~= '' then
+    local q        = opts.headline_filter
+    local fuzzy    = opts.headline_fuzzy
+    local filtered = {}
+
+    local function corpus(it)
+      local fn   = vim.fn.fnamemodify(it.file or '', ':t'):gsub('%.org$', '')
+      local tags = it.tags and #it.tags > 0 and (':' .. table.concat(it.tags, ':') .. ':') or ''
+      return table.concat({
+        it.headline or '',
+        it.todo_state or '',
+        fn,
+        tags,
+      }, ' '):lower()
+    end
+
+    if fuzzy then
+      for _, it in ipairs(items) do
+        if #vim.fn.matchfuzzy({ corpus(it) }, q) > 0 then
+          filtered[#filtered + 1] = it
+        end
+      end
+    else
+      q = q:lower()
+      for _, it in ipairs(items) do
+        if corpus(it):find(q, 1, true) then
+          filtered[#filtered + 1] = it
+        end
+      end
+    end
+    items = filtered
+  end
+
   return items
 end
 
@@ -80,6 +114,12 @@ function M.refresh(cursor_pos, opts)
   if opts then
     if opts.todo_filter == nil and M._last_opts then
       M._last_opts.todo_filter = nil
+    end
+    if opts.headline_filter == nil and M._last_opts then
+      M._last_opts.headline_filter = nil
+    end
+    if opts.headline_fuzzy == nil and M._last_opts then
+      M._last_opts.headline_fuzzy = nil
     end
     M._last_opts = vim.tbl_deep_extend('force', M._last_opts or {}, opts)
   end
@@ -121,4 +161,5 @@ function M.on_close()
   end
 end
 
+M._build_items = build_items
 return M

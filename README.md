@@ -75,6 +75,8 @@ return {
       keymaps = {
         filter_reset = 'oa',
         toggle_other = 'oo',
+        filter         = 'of',                          -- live filter by headline (exact)
+        filter_fuzzy   = 'oz',                          -- live filter by headline (fuzzy)
         reschedule   = 'cs',
         set_deadline = 'cd',
         cycle_todo   = 't',
