@@ -368,6 +368,23 @@ function A.set_keymaps(buf, win, line_map, reopen)
   end, { buffer = buf, silent = true })
 
   ------------------------------------------------------------------------
+  -- Refile current headline (Telescope)
+  if cfg.keymaps.refile and cfg.keymaps.refile ~= '' then
+    vim.keymap.set('n', cfg.keymaps.refile, function()
+      with_headline(line_map, function(_, hl)
+        local pos = hl.position
+        if not (pos and pos.start_line and pos.end_line and hl.level) then
+          return vim.notify('Cannot refile: missing position info from orgmode.', vim.log.levels.WARN)
+        end
+        local ok, ref = pcall(require, 'org-super-agenda.refile')
+        if not ok then
+          return vim.notify('org-super-agenda.refile module not found.', vim.log.levels.ERROR)
+        end
+        ref.start_refile(hl.file.filename, pos.start_line, pos.end_line, hl.level)
+      end)
+    end, { buffer = buf, silent = true })
+  end
+  ------------------------------------------------------------------------
   -- Cycle View -----------------------------------------------------
   if cfg.keymaps.cycle_view and cfg.keymaps.cycle_view ~= '' then
     vim.keymap.set('n', cfg.keymaps.cycle_view, function()

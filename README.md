@@ -81,6 +81,7 @@ return {
         set_deadline = 'cd',
         cycle_todo   = 't',
         reload       = 'r',
+        refile       = 'R',  -- refile current headline via Telescope
         hide_item    = 'x',
         preview      = 'K',
         reset_hidden = 'X',

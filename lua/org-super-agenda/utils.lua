@@ -83,6 +83,7 @@ function U.show_help()
     fmt(km.cycle_view, 'Switch view (classic/compact)'),
     fmt(km.hide_item, 'Hide headline from agenda'),
     fmt(km.reset_hidden, 'Reset hide'),
+    fmt(km.refile, 'Refile headline [<C-Space> toggles mode]'),
     fmt('q / <Esc>', 'Close agenda'),
     '',
     'g? / q / <Esc> close this help.',
@@ -98,7 +99,7 @@ function U.show_help()
 
   local ui               = vim.api.nvim_list_uis()[1]
   local h                = #out + 2
-  local w                = 50
+  local w                = 60
   local win              = vim.api.nvim_open_win(buf, true, {
     relative = 'editor',
     style    = 'minimal',
