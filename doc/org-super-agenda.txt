@@ -23,8 +23,12 @@ Press the keymap defined for a TODO state to filter by it and
 `oa` to reset the filter. Use `cs` to reschedule, `cd` to set a
 deadline, `t` to cycle TODO state, `s` to set state directly,
 and `r` to refresh the agenda from disk. Press `K` to preview
-the current headline and `q` to close the preview. Press <Tab> on
-a group header to toggle collapse/expand.
+the current headline and `q` to close the preview. Press `<CR>`
+to edit a headline in the float, `gf` to go to the selected headline —
+closes the agenda and opens the file at the headline position in the
+previous window. Press <Tab> on a group header
+to toggle collapse/expand; on an item line it runs `fold_item_action`
+(default: preview).
 
 ```
     Additional useful keys:
@@ -205,7 +209,17 @@ Group headers show item counts in this format:
 Use `<Tab>` on a group header to collapse/expand that group.
 Use `zM` to fold all groups and `zR` to unfold all groups.
 
-When cursor is on a normal item line, `<Tab>` behaves like preview (`K`).
+When cursor is on a normal item line, `<Tab>` runs the action configured
+via `fold_item_action`:
+
+    'preview'   Show item in preview popup (default)
+    'goto'      Close agenda and open file at headline in previous
+                window
+
+`gf` always goes to the headline in the previous window, regardless
+of `fold_item_action`. To match org-agenda `<Tab>` behavior, set
+`fold_item_action = 'goto'`.
+Note: `goto` is not available in |org-super-agenda-popup| mode.
 
 ==============================================================================
 FILTERS & QUERY                                               *org-super-agenda-query*
@@ -418,6 +432,9 @@ M.defaults = {
     toggle_duplicates = 'D',
     cycle_view        = 'ov',
     open_view         = 'V',
+    ['goto']          = 'gf',
+    fold_or_action    = '<Tab>',
+    edit              = '<CR>',
   },
 
   todo_states         = {
@@ -498,6 +515,7 @@ M.defaults = {
   show_filename       = true,
   heading_max_length  = 70,
   persist_hidden      = false,
+  fold_item_action    = 'preview',  -- 'preview' or 'goto'
   view_mode           = 'classic',
   classic             = { heading_order = { 'filename', 'todo', 'priority', 'headline' }, short_date_labels = false, inline_dates = true },
   compact             = { filename_min_width = 10, label_min_width = 12 },

@@ -41,13 +41,40 @@ M.defaults = {
     bulk_reselect = 'gv',
     bulk_action = 'B',
     open_view = 'V',
+    ['goto'] = 'gf',
+    fold_or_action = '<Tab>',
+    edit = '<CR>',
   },
 
   todo_states = {
-    { name = 'TODO', keymap = 'ot', color = '#FF5555', strike_through = false, fields = { 'filename', 'todo', 'headline', 'priority', 'date', 'tags' } },
-    { name = 'PROGRESS', keymap = 'op', color = '#FFAA00', strike_through = false, fields = { 'filename', 'todo', 'headline', 'priority', 'date', 'tags' } },
-    { name = 'WAITING', keymap = 'ow', color = '#BD93F9', strike_through = false, fields = { 'filename', 'todo', 'headline', 'priority', 'date', 'tags' } },
-    { name = 'DONE', keymap = 'od', color = '#50FA7B', strike_through = true, fields = { 'filename', 'todo', 'headline', 'priority', 'date', 'tags' } },
+    {
+      name = 'TODO',
+      keymap = 'ot',
+      color = '#FF5555',
+      strike_through = false,
+      fields = { 'filename', 'todo', 'headline', 'priority', 'date', 'tags' },
+    },
+    {
+      name = 'PROGRESS',
+      keymap = 'op',
+      color = '#FFAA00',
+      strike_through = false,
+      fields = { 'filename', 'todo', 'headline', 'priority', 'date', 'tags' },
+    },
+    {
+      name = 'WAITING',
+      keymap = 'ow',
+      color = '#BD93F9',
+      strike_through = false,
+      fields = { 'filename', 'todo', 'headline', 'priority', 'date', 'tags' },
+    },
+    {
+      name = 'DONE',
+      keymap = 'od',
+      color = '#50FA7B',
+      strike_through = true,
+      fields = { 'filename', 'todo', 'headline', 'priority', 'date', 'tags' },
+    },
   },
 
   -- You can add per-group { sort = { by='deadline'|'scheduled'|'priority'|'todo'|'filename'|'headline'|'date_nearest', order='asc'|'desc' } }
@@ -135,8 +162,13 @@ M.defaults = {
   show_filename = true,
   heading_max_length = 70,
   persist_hidden = false,
+  fold_item_action = 'preview',
   view_mode = 'classic',
-  classic = { heading_order = { 'filename', 'todo', 'priority', 'headline' }, short_date_labels = false, inline_dates = true },
+  classic = {
+    heading_order = { 'filename', 'todo', 'priority', 'headline' },
+    short_date_labels = false,
+    inline_dates = true,
+  },
   compact = { filename_min_width = 10, label_min_width = 12 },
 
   -- Global fallback sort for groups that don't specify their own `sort`

@@ -65,9 +65,12 @@ function U.show_help()
   end
 
   vim.list_extend(lines, {
+    'Navigation:',
+    fmt(km.edit, 'Edit headline (float)'),
+    fmt(km['goto'], 'Goto headline (prev window)'),
+    fmt(km.fold_or_action, 'Fold group / ' .. (cfg.fold_item_action or 'preview') .. ' item'),
+    '',
     'Misc:',
-    fmt('<CR>', 'Open headline'),
-    fmt('<Tab>', 'Toggle fold on group header'),
     fmt(km.reload, 'Reload agenda'),
     fmt(km.clock_in, 'Clock in'),
     fmt(km.clock_out, 'Clock out'),
