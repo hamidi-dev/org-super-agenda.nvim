@@ -56,6 +56,19 @@ local function render(cursor, opts, reuse)
 end
 
 function Services.agenda.open(opts)
+  -- If already open, just focus the window and optionally refresh
+  if view.is_open() then
+    local buf = view._buf
+    local win = view._win
+    if vim.api.nvim_buf_is_valid(buf) and vim.api.nvim_win_is_valid(win) then
+      vim.api.nvim_set_current_win(win)
+      if opts and (opts.fullscreen ~= nil or opts.todo_filter or opts.headline_filter) then
+        render(vim.api.nvim_win_get_cursor(0), opts, true)
+      end
+      return
+    end
+  end
+  -- Not open yet, create new window
   store.set_cursor(nil)
   render(nil, opts or {}, false)
 end
