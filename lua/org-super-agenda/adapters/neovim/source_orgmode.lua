@@ -256,9 +256,12 @@ function S.collect()
   end
 
   for _, file in ipairs(files) do
+    -- Get filetags from the internal file object to pass as initial inherited tags
+    local filetags = file._file:get_filetags() or {}
+
     for _, hl in ipairs(file.headlines or {}) do
-      -- Top-level inherits nothing initially
-      walk(hl, {})
+      -- Top-level headlines inherit filetags
+      walk(hl, filetags)
     end
   end
 
