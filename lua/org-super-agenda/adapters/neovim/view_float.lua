@@ -148,6 +148,11 @@ function V.render(producer, cursor, _mode, opts)
   local rows, hls, line_map = producer(sz.win_w)
   append_footer(rows, hls)
 
+  -- Delete old buffer before creating a new one (avoids E95: name already exists)
+  if V._buf and vim.api.nvim_buf_is_valid(V._buf) then
+    pcall(vim.api.nvim_buf_delete, V._buf, { force = true })
+  end
+
   local buf = vim.api.nvim_create_buf(false, true)
   local pad = {}
   for _, l in ipairs(rows) do
@@ -161,17 +166,25 @@ function V.render(producer, cursor, _mode, opts)
     add_hl(buf, h[1], sz.left + h[2], h[3] == -1 and -1 or sz.left + h[3], h)
   end
 
-  local win = vim.api.nvim_open_win(buf, true, {
-    relative = 'editor',
-    style = 'minimal',
-    width = sz.width,
-    height = sz.height,
-    col = math.floor((sz.ui.width - sz.width) / 2),
-    row = math.floor((sz.ui.height - sz.height) / 2),
-    border = sz.border,
-    title = sz.title,
-    title_pos = sz.title_pos,
-  })
+  -- Reuse existing window if still valid, otherwise create new one
+  local win
+  if V._win and vim.api.nvim_win_is_valid(V._win) then
+    win = V._win
+    vim.api.nvim_win_set_buf(win, buf)
+    vim.api.nvim_set_current_win(win)
+  else
+    win = vim.api.nvim_open_win(buf, true, {
+      relative = 'editor',
+      style = 'minimal',
+      width = sz.width,
+      height = sz.height,
+      col = math.floor((sz.ui.width - sz.width) / 2),
+      row = math.floor((sz.ui.height - sz.height) / 2),
+      border = sz.border,
+      title = sz.title,
+      title_pos = sz.title_pos,
+    })
+  end
   vim.api.nvim_win_set_option(win, 'wrap', false)
   vim.api.nvim_win_set_option(win, 'cursorline', true)
 
@@ -196,7 +209,10 @@ function V.render(producer, cursor, _mode, opts)
 end
 
 function V.update(producer, cursor, _mode, opts)
-  if V.is_open() then
+  -- If window exists but buffer is invalid, reuse window with new buffer
+  if V._win and vim.api.nvim_win_is_valid(V._win) and (not V._buf or not vim.api.nvim_buf_is_valid(V._buf)) then
+    V.render(producer, cursor, _mode, opts)
+  elseif V.is_open() then
     draw_into(V._buf, V._win, producer, cursor, opts)
     pcall(vim.api.nvim_win_set_config, V._win, { title = view_title() })
   else
