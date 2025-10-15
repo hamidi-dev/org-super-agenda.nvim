@@ -807,26 +807,73 @@ function A.set_keymaps(buf, win, line_map, reopen)
     vim.keymap.set('n', k, wipe, { buffer = buf, silent = true })
   end
 
-  -- open file
-  vim.keymap.set('n', '<CR>', function()
+  -- edit file in floating window (configurable keymap, default Enter)
+  if cfg.keymaps.edit and cfg.keymaps.edit ~= '' then
+    vim.keymap.set('n', cfg.keymaps.edit, function()
+      with_headline(line_map, function(cur, hl)
+        local agendabuf = vim.api.nvim_get_current_buf()
+        vim.cmd('edit ' .. vim.fn.fnameescape(hl.file.filename))
+        vim.api.nvim_win_set_cursor(0, { hl.position.start_line, 0 })
+        local filebuf = vim.api.nvim_get_current_buf()
+        pcall(vim.api.nvim_buf_delete, agendabuf, { force = true })
+
+        -- Add q/Esc keymaps to file buffer for consistent close behavior
+        local function close_file()
+          if vim.api.nvim_buf_is_valid(filebuf) then
+            pcall(vim.api.nvim_buf_delete, filebuf, { force = false })
+          end
+        end
+        for _, k in ipairs({ 'q', '<Esc>' }) do
+          vim.keymap.set('n', k, close_file, { buffer = filebuf, silent = true })
+        end
+
+        vim.api.nvim_create_autocmd('BufWinLeave', {
+          buffer = filebuf,
+          once = true,
+          callback = function()
+            vim.schedule(function()
+              pcall(vim.api.nvim_buf_delete, filebuf, { force = true })
+              reopen(cur)
+            end)
+          end,
+        })
+      end)
+    end, { buffer = buf, silent = true })
+  end
+
+  -- goto: close float and open file in previous window
+  local function goto_headline()
+    local popup = cfg.popup_mode
+    if popup and popup.enabled then
+      vim.notify('goto not available in popup mode', vim.log.levels.WARN)
+      return
+    end
+
     with_headline(line_map, function(cur, hl)
-      local agendabuf = vim.api.nvim_get_current_buf()
+      local ViewPort = require('org-super-agenda.adapters.neovim.view_float')
+      local prev_win = ViewPort.prev_win()
+
+      -- Close the floating window
+      if vim.api.nvim_win_is_valid(win) then
+        pcall(vim.api.nvim_win_close, win, true)
+      end
+      if vim.api.nvim_buf_is_valid(buf) then
+        pcall(vim.api.nvim_buf_delete, buf, { force = true })
+      end
+      require('org-super-agenda').on_close()
+
+      -- Switch to previous window and open file
+      if prev_win and vim.api.nvim_win_is_valid(prev_win) then
+        vim.api.nvim_set_current_win(prev_win)
+      end
       vim.cmd('edit ' .. vim.fn.fnameescape(hl.file.filename))
       vim.api.nvim_win_set_cursor(0, { hl.position.start_line, 0 })
-      local filebuf = vim.api.nvim_get_current_buf()
-      pcall(vim.api.nvim_buf_delete, agendabuf, { force = true })
-      vim.api.nvim_create_autocmd('BufWinLeave', {
-        buffer = filebuf,
-        once = true,
-        callback = function()
-          vim.schedule(function()
-            pcall(vim.api.nvim_buf_delete, filebuf, { force = true })
-            reopen(cur)
-          end)
-        end,
-      })
     end)
-  end, { buffer = buf, silent = true })
+  end
+
+  if cfg.keymaps['goto'] and cfg.keymaps['goto'] ~= '' then
+    vim.keymap.set('n', cfg.keymaps['goto'], goto_headline, { buffer = buf, silent = true })
+  end
 
   -- reschedule / deadline (unchanged but undo-aware)
   vim.keymap.set('n', cfg.keymaps.reschedule, function()
@@ -1097,12 +1144,21 @@ function A.set_keymaps(buf, win, line_map, reopen)
     end, { buffer = buf, silent = true })
   end
 
-  -- <Tab>: toggle group fold on group header, otherwise preview item
-  vim.keymap.set('n', '<Tab>', function()
-    if not toggle_group_on_cursor(line_map) then
+  -- fold + fallback: toggle group fold on group header, otherwise run fold_item_action
+  local fold_actions = {
+    ['goto'] = goto_headline,
+    preview = function()
       preview_headline(line_map)
-    end
-  end, { buffer = buf, silent = true })
+    end,
+  }
+  if cfg.keymaps.fold_or_action and cfg.keymaps.fold_or_action ~= '' then
+    vim.keymap.set('n', cfg.keymaps.fold_or_action, function()
+      if not toggle_group_on_cursor(line_map) then
+        local action = fold_actions[cfg.fold_item_action] or fold_actions['preview']
+        action()
+      end
+    end, { buffer = buf, silent = true })
+  end
 
   if cfg.keymaps.fold_all and cfg.keymaps.fold_all ~= '' then
     vim.keymap.set('n', cfg.keymaps.fold_all, function()

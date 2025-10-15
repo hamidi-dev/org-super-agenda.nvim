@@ -2,7 +2,7 @@
 local hi = require('org-super-agenda.adapters.neovim.highlight')
 local get_cfg = require('org-super-agenda.config').get
 
-local V = { _buf = nil, _win = nil, _line_map = {}, _ns = vim.api.nvim_create_namespace('OrgSuperAgenda') }
+local V = { _buf = nil, _win = nil, _prev_win = nil, _line_map = {}, _ns = vim.api.nvim_create_namespace('OrgSuperAgenda') }
 
 local function active_clock_status()
   local ok, org = pcall(require, 'orgmode')
@@ -26,6 +26,9 @@ end
 
 function V.line_map()
   return V._line_map
+end
+function V.prev_win()
+  return V._prev_win
 end
 
 local function add_hl(buf, row, col_start, col_end, entry)
@@ -173,6 +176,8 @@ function V.render(producer, cursor, _mode, opts)
     vim.api.nvim_win_set_buf(win, buf)
     vim.api.nvim_set_current_win(win)
   else
+    -- Store current window before creating floating window (for Tab keymap)
+    V._prev_win = vim.api.nvim_get_current_win()
     win = vim.api.nvim_open_win(buf, true, {
       relative = 'editor',
       style = 'minimal',
