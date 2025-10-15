@@ -226,6 +226,7 @@ local function headline_to_item(h, inherited_tags)
     _src_line = h.position and h.position.start_line,
     clocked_in = (h._section and h._section.is_clocked_in and h._section:is_clocked_in()) or false,
     has_more = headline_has_more(h),
+    is_archived = h.is_archived or false,
   })
 end
 
