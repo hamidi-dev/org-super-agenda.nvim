@@ -210,8 +210,15 @@ function A.set_keymaps(buf, win, line_map, reopen)
 
   -- close
   local function wipe()
-    if vim.api.nvim_buf_is_valid(buf) then pcall(vim.api.nvim_buf_delete, buf, { force = true }) end
-    require('org-super-agenda').on_close()
+    local popup = cfg.popup_mode
+    if popup and popup.enabled and popup.hide_command then
+      -- Popup mode: detach from tmux session to hide the popup
+      vim.fn.system(popup.hide_command)
+    else
+      -- Normal mode: close buffer
+      if vim.api.nvim_buf_is_valid(buf) then pcall(vim.api.nvim_buf_delete, buf, { force = true }) end
+      require('org-super-agenda').on_close()
+    end
   end
   for _, k in ipairs({ 'q', '<Esc>' }) do vim.keymap.set('n', k, wipe, { buffer = buf, silent = true }) end
 

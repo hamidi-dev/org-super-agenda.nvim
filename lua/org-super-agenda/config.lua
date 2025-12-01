@@ -114,6 +114,12 @@ M.defaults = {
   -- Global fallback sort for groups that don't specify their own `sort`
   group_sort          = { by = 'date_nearest', order = 'asc' },
 
+  -- Popup mode: when enabled, 'q' detaches from tmux instead of closing the buffer
+  popup_mode          = {
+    enabled      = false,
+    hide_command = nil, -- e.g., "tmux detach-client"
+  },
+
   debug               = false,
 }
 

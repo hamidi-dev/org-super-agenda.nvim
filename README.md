@@ -139,6 +139,12 @@ return {
       -- Global fallback sort for groups that omit `sort`
       group_sort = { by='date_nearest', order='asc' },
 
+      -- Popup mode: run in a persistent tmux session for instant access
+      popup_mode = {
+        enabled      = false,
+        hide_command = nil, -- e.g., "tmux detach-client"
+      },
+
       debug = false,
     })
   end,
@@ -226,6 +232,21 @@ Switch with `ov` (or set `view_mode` in config).
 * Hit `R` on an item to open a picker
 * Toggle between **file** and **headline** targets with `<C-Space>`
 * Segment is moved and auto-reloaded in any open buffers
+
+---
+
+## 🪟 Popup Mode (tmux integration)
+
+Run OrgSuperAgenda in a dedicated tmux session for instant access. When enabled, pressing `q` hides the session instead of closing the buffer.
+
+```lua
+popup_mode = {
+  enabled      = true,
+  hide_command = "tmux detach-client",
+}
+```
+
+You can bind a tmux key to toggle the popup session for quick agenda access.
 
 ---
 

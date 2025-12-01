@@ -304,8 +304,38 @@ M.defaults = {
   -- Global fallback sort for groups that don't specify their own `sort`
   group_sort          = { by = 'date_nearest', order = 'asc' },
 
+  -- Popup mode: when enabled, 'q' runs hide_command instead of closing the buffer
+  popup_mode          = {
+    enabled      = false,
+    hide_command = nil, -- e.g., "tmux detach-client"
+  },
+
   debug               = false,
 }
+
+===============================================================================
+POPUP MODE                                                  *org-super-agenda-popup*
+
+When running OrgSuperAgenda in a dedicated tmux session (e.g., as a persistent
+popup), you can enable `popup_mode` so that pressing `q` hides the session
+instead of closing the buffer. This allows instant access to your agenda.
+
+Example setup \~
+
+>
+
+```
+popup_mode = {
+  enabled      = true,
+  hide_command = "tmux detach-client",
+}
+```
+
+<
+
+With this configuration, pressing `q` runs the `hide_command` instead of
+closing the agenda buffer. You can bind a tmux key to show/hide the popup
+session for quick agenda access.
 
 ===============================================================================
 SAFETY NOTES                                                  *org-super-agenda-safety*
