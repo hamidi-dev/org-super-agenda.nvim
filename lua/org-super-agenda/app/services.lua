@@ -13,11 +13,12 @@ function Services.setup(deps)
 end
 
 local function render(cursor, opts, reuse)
-  local view_opts = {}
-  if opts then
-    -- move non-view opts into state, keep view-only opts aside
-    view_opts.fullscreen = opts.fullscreen
+  if opts and opts.fullscreen ~= nil then
+    store.set_fullscreen(opts.fullscreen)
+  end
+  local view_opts = { fullscreen = store.get().fullscreen }
 
+  if opts then
     local s = store.get()
     if opts.todo_filter == nil then s.opts.todo_filter = nil end
     if opts.headline_filter == nil then s.opts.headline_filter = nil end

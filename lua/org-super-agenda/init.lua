@@ -25,7 +25,7 @@ function M.setup(user)
   -- :OrgSuperAgenda fullscreen -> fullscreen
   -- :OrgSuperAgenda!           -> fullscreen (bang alias)
   vim.api.nvim_create_user_command('OrgSuperAgenda', function(opts)
-    local fullscreen = (opts.bang == true) or (opts.args or ''):lower():match('^full')
+    local fullscreen = (opts.bang == true) or (opts.args or ''):lower():match('^full') ~= nil
     Services.agenda.open({ fullscreen = fullscreen })
   end, { nargs='?', bang=true, complete=function() return { 'fullscreen' } end })
 end

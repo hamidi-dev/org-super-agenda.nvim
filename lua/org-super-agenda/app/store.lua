@@ -8,6 +8,7 @@ local Store = {
     undo_stack = {},
     allow_duplicates = false,
     sticky_done = {},       -- items turned DONE during this session (keep visible)
+    fullscreen = false,
   }
 }
 
@@ -16,6 +17,7 @@ function Store.set_opts(opts) Store.state.opts = opts or {} end
 function Store.set_cursor(cur) Store.state.cursor = cur end
 function Store.toggle_dupes() Store.state.allow_duplicates = not Store.state.allow_duplicates end
 function Store.set_view_mode(m) Store.state.view_mode = m or 'classic' end
+function Store.set_fullscreen(v) Store.state.fullscreen = v == true end
 function Store.hide(key) Store.state.hidden[key] = true end
 function Store.reset_hidden() Store.state.hidden = {} end
 
