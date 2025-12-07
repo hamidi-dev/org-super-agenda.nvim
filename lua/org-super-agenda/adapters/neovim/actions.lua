@@ -204,6 +204,77 @@ local function apply_with_undo_snapshot(cur, snap, op_fn)
   end, 10)
 end
 
+-- === state setting helpers ===
+local function build_state_shortcuts(states)
+  local shortcuts = {}
+  local used = { ['0'] = true }
+  local conflicts = {}
+  for _, st in ipairs(states) do
+    local key = st.shortcut
+    if not key then
+      key = st.name:sub(1, 1):lower()
+    end
+    if used[key] then
+      conflicts[#conflicts + 1] = st.name
+    else
+      used[key] = true
+      shortcuts[#shortcuts + 1] = { key = key, name = st.name, color = st.color }
+    end
+  end
+  return shortcuts, conflicts
+end
+
+local function set_state_for_headline(line_map, next_state)
+  with_headline(line_map, function(cur, hl)
+    local st = buf_status_for(hl.file.filename)
+    local snap = st.loaded and snapshot_heading_from_buf(hl)
+                 or snapshot_heading_from_disk(hl.file.filename, hl.position.start_line)
+    Store.push_undo(make_restore_from_snapshot(snap))
+
+    local success, err = safe_set_heading_state(hl, next_state)
+    if not success then
+      vim.notify(err, vim.log.levels.WARN)
+      return
+    end
+
+    local key = key_for_hl(hl)
+    if next_state == 'DONE' then Store.sticky_add(key) else Store.sticky_remove(key) end
+    Services.agenda.refresh(cur)
+  end)
+end
+
+local function show_state_menu(line_map, shortcuts)
+  local chunks = { { 'Set state: ', 'Normal' } }
+  for i, s in ipairs(shortcuts) do
+    local hl_name = 'OrgSuperAgendaStateMenu' .. s.name
+    if s.color then
+      vim.api.nvim_set_hl(0, hl_name, { fg = s.color, bold = true })
+    end
+    chunks[#chunks + 1] = { s.key .. '=', 'Comment' }
+    chunks[#chunks + 1] = { s.name, s.color and hl_name or 'Normal' }
+    if i < #shortcuts then chunks[#chunks + 1] = { '  ', 'Normal' } end
+  end
+  chunks[#chunks + 1] = { '  ', 'Normal' }
+  chunks[#chunks + 1] = { '0=', 'Comment' }
+  chunks[#chunks + 1] = { 'clear', 'Normal' }
+
+  vim.api.nvim_echo(chunks, false, {})
+  local ok, c = pcall(vim.fn.getcharstr)
+  vim.api.nvim_echo({}, false, {})
+  if not ok then return end
+
+  local next_state = nil
+  if c == '0' then
+    next_state = ''
+  else
+    for _, s in ipairs(shortcuts) do
+      if s.key == c then next_state = s.name; break end
+    end
+  end
+  if next_state == nil then return end
+  set_state_for_headline(line_map, next_state)
+end
+
 -- === keymaps ===
 function A.set_keymaps(buf, win, line_map, reopen)
   local cfg = get_cfg()
@@ -447,6 +518,32 @@ function A.set_keymaps(buf, win, line_map, reopen)
   -- cycle view
   if cfg.keymaps.cycle_view and cfg.keymaps.cycle_view ~= '' then
     vim.keymap.set('n', cfg.keymaps.cycle_view, function() require('org-super-agenda').cycle_view() end, { buffer = buf, silent = true })
+  end
+
+  -- set state: direct keymaps (st, sd, etc) + timeout menu fallback
+  local prefix = cfg.keymaps.set_state
+  if prefix and prefix ~= '' then
+    local states = get_cfg().todo_states or {}
+    local shortcuts, conflicts = build_state_shortcuts(states)
+    if #conflicts > 0 then
+      vim.notify(
+        'State shortcut conflict for: ' .. table.concat(conflicts, ', ') ..
+        '\nAdd explicit "shortcut" field to todo_states config.',
+        vim.log.levels.ERROR
+      )
+    else
+      for _, s in ipairs(shortcuts) do
+        vim.keymap.set('n', prefix .. s.key, function()
+          set_state_for_headline(line_map, s.name)
+        end, { buffer = buf, silent = true, nowait = true })
+      end
+      vim.keymap.set('n', prefix .. '0', function()
+        set_state_for_headline(line_map, '')
+      end, { buffer = buf, silent = true, nowait = true })
+      vim.keymap.set('n', prefix, function()
+        show_state_menu(line_map, shortcuts)
+      end, { buffer = buf, silent = true })
+    end
   end
 
   -- undo

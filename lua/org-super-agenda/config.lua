@@ -29,6 +29,7 @@ M.defaults = {
     reset_hidden      = 'X',
     toggle_duplicates = 'D',
     cycle_view        = 'ov',
+    set_state         = 's',
   },
 
   todo_states         = {

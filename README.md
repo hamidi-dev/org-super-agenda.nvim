@@ -17,6 +17,7 @@ A Neovim plugin inspired by [org-super-agenda](https://github.com/alphapapa/org-
 * **Live filtering**: exact (`of`), fuzzy (`oz`), and **advanced query** (`oq`)
 * **Quick TODO filters** via per‑state keymaps (e.g. `ot`, `op`, `ow`, `od`)
 * **Inline editing** for TODO, priority, scheduled & deadline
+* **Direct state setting** via `s` prefix (e.g., `st`, `sd`) with colored menu fallback
 * **Priority tools**: `A`, `B`, `C`, `+`, `-`, `0`
 * **Preview headline** (`K`), **open** (`<CR>`), **refile** (`R`)
 * **Hide item** (`x`) / **reset hidden** (`X`) with optional persistence
@@ -61,6 +62,7 @@ return {
       exclude_directories = {},
 
       -- TODO states + their quick filter keymaps and highlighting
+      -- Optional: add `shortcut` field to override the default key (first letter)
       todo_states = {
         { name='TODO',     keymap='ot', color='#FF5555', strike_through=false, fields={'filename','todo','headline','priority','date','tags'} },
         { name='PROGRESS', keymap='op', color='#FFAA00', strike_through=false, fields={'filename','todo','headline','priority','date','tags'} },
@@ -79,6 +81,7 @@ return {
         reschedule        = 'cs', -- set/change SCHEDULED
         set_deadline      = 'cd', -- set/change DEADLINE
         cycle_todo        = 't',  -- cycle TODO state
+        set_state         = 's',  -- set state directly (st, sd, etc.) or show menu
         reload            = 'r',  -- refresh agenda
         refile            = 'R',  -- refile via Telescope/org-telescope
         hide_item         = 'x',  -- hide current item
@@ -224,6 +227,32 @@ tag:personal -WAITING sched>=0
 * **compact**: fixed columns for filename and date label (`Sched. in 3 d.:`), right-aligned tags
 
 Switch with `ov` (or set `view_mode` in config).
+
+---
+
+## 🎯 Direct State Setting
+
+Set TODO states directly without cycling:
+
+| Keys | Action |
+|------|--------|
+| `st` | Set TODO |
+| `sp` | Set PROGRESS |
+| `sw` | Set WAITING |
+| `sd` | Set DONE |
+| `s0` | Clear state |
+| `s` (wait) | Show colored menu |
+
+The prefix key (`s`) is configurable via `keymaps.set_state`. Shortcut keys are derived from the first letter of each state name. If you have conflicting state names (e.g., `TODO` and `TRACKING`), add an explicit `shortcut` field:
+
+```lua
+todo_states = {
+  { name='TODO',     shortcut='t', ... },
+  { name='TRACKING', shortcut='r', ... },  -- explicit shortcut to avoid conflict
+}
+```
+
+When you press `s` and wait, a colored menu appears showing all available states in their configured colors.
 
 ---
 

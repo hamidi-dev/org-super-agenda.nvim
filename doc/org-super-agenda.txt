@@ -21,14 +21,17 @@ USAGE                                                           *org-super-agend
 Navigation & actions \~
 Press the keymap defined for a TODO state to filter by it and
 `oa` to reset the filter. Use `cs` to reschedule, `cd` to set a
-deadline, `t` to cycle TODO state and `r` to refresh the agenda
-from disk. Press `K` to preview the current headline and `q` to
-close the preview.
+deadline, `t` to cycle TODO state, `s` to set state directly,
+and `r` to refresh the agenda from disk. Press `K` to preview
+the current headline and `q` to close the preview.
 
 ```
     Additional useful keys:
         of / oz   Live filters (exact / fuzzy)
         oq        Advanced query prompt (see |org-super-agenda-query|)
+        st/sp/sw/sd  Set state directly (TODO/PROGRESS/WAITING/DONE)
+        s0        Clear TODO state
+        s (wait)  Show state menu with colors
         D         Toggle allowing duplicates across groups
         ov        Switch view mode (classic ↔ compact)
         x / X     Hide current item / reset hidden list
@@ -186,6 +189,37 @@ Press `R` on an item to start refiling via Telescope + org-telescope.
 * The moved segment is written to disk and any unmodified open buffers reload
 
 ===============================================================================
+DIRECT STATE SETTING                                      *org-super-agenda-set-state*
+
+Set TODO states directly without cycling through all states.
+
+Default keymaps (prefix `s`) \~
+st            Set TODO
+sp            Set PROGRESS
+sw            Set WAITING
+sd            Set DONE
+s0            Clear state (remove TODO keyword)
+s (wait)      Show colored menu
+
+The shortcut key for each state is derived from the first letter of the state
+name. If you have conflicting names (e.g., TODO and TRACKING), add an explicit
+`shortcut` field to your `todo_states` config:
+
+>
+
+```
+todo_states = {
+  { name='TODO',     shortcut='t', color='#FF5555', ... },
+  { name='TRACKING', shortcut='r', color='#AAAAAA', ... },
+}
+```
+
+<
+
+When you press `s` and wait (based on your `timeoutlen`), a colored menu
+appears showing all available states in their configured colors.
+
+===============================================================================
 DEFAULT OPTIONS                                                *org-super-agenda-options*
 
 The defaults (see |lua/org-super-agenda/config.lua|) are:
@@ -212,6 +246,7 @@ M.defaults = {
     priority_B        = 'B',
     priority_C        = 'C',
     cycle_todo        = 't',
+    set_state         = 's',
     reload            = 'r',
     refile            = 'R',
     hide_item         = 'x',

@@ -51,6 +51,7 @@ function U.show_help()
     fmt('<CR>', 'Open headline'),
     fmt(km.reload, 'Reload agenda'),
     fmt(km.cycle_todo, 'Cycle TODO-States'),
+    fmt(km.set_state, 'Set state (menu)'),
     fmt(km.undo, 'Undo'),
     fmt(km.toggle_other, 'Toggle "Other" group'),
     fmt(km.toggle_duplicates, 'Toggle duplicates'),
