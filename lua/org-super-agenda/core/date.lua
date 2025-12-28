@@ -2,13 +2,17 @@
 local Date = {}   -- Y-M-D only
 Date.__index = Date
 
-function Date.new(y, m, d) return setmetatable({year=y, month=m, day=d}, Date) end
+function Date.new(y, m, d, active)
+  return setmetatable({year=y, month=m, day=d, active=(active~=false)}, Date)
+end
 function Date.parse(str)
   local y,m,d = tostring(str):match('(%d%d%d%d)-(%d%d)-(%d%d)')
-  return y and Date.new(tonumber(y), tonumber(m), tonumber(d)) or nil
+  return y and Date.new(tonumber(y), tonumber(m), tonumber(d), true) or nil
 end
 function Date.from_orgdate(orgdate)
-  return orgdate and Date.new(orgdate.year, orgdate.month, orgdate.day) or nil
+  if not orgdate then return nil end
+  local is_active = orgdate.active ~= false  -- default to true if field missing
+  return Date.new(orgdate.year, orgdate.month, orgdate.day, is_active)
 end
 function Date:is_today()
   local t = os.date('*t'); return self.year==t.year and self.month==t.month and self.day==t.day
