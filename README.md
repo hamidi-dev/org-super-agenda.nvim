@@ -105,8 +105,8 @@ return {
 
       -- Group definitions (order matters; first match wins unless allow_duplicates=true)
       groups = {
-        { name = '📅 Today',     matcher = function(i) return i.scheduled and i.scheduled:is_today() end, sort={ by='priority', order='desc' } },
-        { name = '🗓️ Tomorrow', matcher = function(i) return i.scheduled and i.scheduled:days_from_today() == 1 end },
+        { name = '📅 Today',     matcher = function(i) return i.scheduled and i.scheduled:is_today() end, sort={ by='scheduled_time', order='asc' } },
+        { name = '🗓️ Tomorrow', matcher = function(i) return i.scheduled and i.scheduled:days_from_today() == 1 end, sort={ by='scheduled_time', order='asc' } },
         { name = '☠️ Deadlines', matcher = function(i) return i.deadline and i.todo_state ~= 'DONE' and not i:has_tag('personal') end, sort={ by='deadline', order='asc' } },
         { name = '⭐ Important',  matcher = function(i) return i.priority == 'A' and (i.deadline or i.scheduled) end, sort={ by='date_nearest', order='asc' } },
         { name = '⏳ Overdue',    matcher = function(i) return i.todo_state ~= 'DONE' and ((i.deadline and i.deadline:is_past()) or (i.scheduled and i.scheduled:is_past())) end, sort={ by='date_nearest', order='asc' } },
@@ -162,6 +162,7 @@ Supported sort keys:
 
 * `date_nearest` (min of days-to-deadline/scheduled; missing → ∞)
 * `deadline`, `scheduled` (days from today)
+* `deadline_time`, `scheduled_time` (sorts by exact date+time when available)
 * `priority` (A > B > C)
 * `todo` (order of your `todo_states`)
 * `filename`, `headline`
@@ -174,9 +175,22 @@ Examples:
 -- Global default
 group_sort = { by = 'date_nearest', order = 'asc' }
 
--- Per group override
-{ name = '☠️ Deadlines', matcher = m_deadlines, sort = { by = 'deadline', order = 'asc' } }
+-- Per group override (by date only)
+{ 
+  name = '☠️ Deadlines', 
+  matcher = function(i) return i.deadline and i.todo_state ~= 'DONE' end, 
+  sort = { by = 'deadline', order = 'asc' } 
+}
+
+-- Sort by exact time (includes hour:minute when present)
+{ 
+  name = '📅 Today', 
+  matcher = function(i) return i.scheduled and i.scheduled:is_today() end, 
+  sort = { by = 'scheduled_time', order = 'asc' } 
+}
 ```
+
+**Note:** Items with time-of-day (e.g., `SCHEDULED: <2026-01-31 09:00>`) are displayed with their times in classic view. Use `scheduled_time` or `deadline_time` sort keys to order by exact timestamp.
 
 ---
 

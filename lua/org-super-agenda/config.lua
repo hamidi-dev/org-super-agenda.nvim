@@ -44,11 +44,12 @@ M.defaults = {
     {
       name = "📅 Today",
       matcher = function(i) return i.scheduled and i.scheduled:is_today() end,
-      sort = { by = 'priority', order = 'desc' }
+      sort = { by = 'scheduled_time', order = 'asc' }
     },
     {
       name = "🗓️ Tomorrow",
-      matcher = function(i) return i.scheduled and i.scheduled:days_from_today() == 1 end
+      matcher = function(i) return i.scheduled and i.scheduled:days_from_today() == 1 end,
+      sort = { by = 'scheduled_time', order = 'asc' }
     },
     {
       name = "☠️ Deadlines",
