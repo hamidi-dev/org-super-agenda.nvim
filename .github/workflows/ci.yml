@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      matrix:
+        nvim-version: ['stable', 'nightly']
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Neovim ${{ matrix.nvim-version }}
+        uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: ${{ matrix.nvim-version }}
+      
+      - name: Install plenary.nvim
+        run: |
+          mkdir -p ~/.local/share/nvim/site/pack/vendor/start
+          git clone --depth 1 https://github.com/nvim-lua/plenary.nvim.git \
+            ~/.local/share/nvim/site/pack/vendor/start/plenary.nvim
+      
+      - name: Run tests
+        timeout-minutes: 3
+        run: |
+          nvim --version
+          nvim --headless -u tests/helpers/min.lua \
+            -c "PlenaryBustedDirectory tests/ { minimal_init = 'tests/helpers/min.lua' }"
+      
+      - name: Check test results
+        if: failure()
+        run: echo "Tests failed!"

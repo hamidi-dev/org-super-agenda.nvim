@@ -1,4 +1,4 @@
-local hi = require('org-super-agenda.highlight')
+local hi = require('org-super-agenda.adapters.neovim.highlight')
 
 describe('highlight', function()
   before_each(function()

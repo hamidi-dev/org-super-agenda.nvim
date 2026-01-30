@@ -1,5 +1,9 @@
 # org-super-agenda.nvim
 
+[![CI](https://github.com/hamidi-dev/org-super-agenda.nvim/actions/workflows/ci.yml/badge.svg)](https://github.com/hamidi-dev/org-super-agenda.nvim/actions/workflows/ci.yml)
+[![Release](https://github.com/hamidi-dev/org-super-agenda.nvim/actions/workflows/release.yml/badge.svg)](https://github.com/hamidi-dev/org-super-agenda.nvim/actions/workflows/release.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 ![org-super-agenda](screenshots/org-super-agenda-help.png)
 ![org-super-agenda](screenshots/org-super-agenda.png)
 

@@ -1,4 +1,4 @@
-local Item = require('org-super-agenda.org_item')
+local Item = require('org-super-agenda.core.item')
 
 describe('org_item', function()
   it('matches tags case-insensitively', function()
