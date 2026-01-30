@@ -12,7 +12,6 @@ local function todo_rank_factory(cfg)
 end
 
 local key_getters = {
-  -- “date_nearest”: min(days to scheduled, days to deadline); nil → big
   date_nearest = function(it)
     local d1 = it.deadline  and it.deadline:days_from_today()
     local d2 = it.scheduled and it.scheduled:days_from_today()
@@ -21,6 +20,8 @@ local key_getters = {
   end,
   deadline  = function(it) return it.deadline  and it.deadline:days_from_today()  or math.huge end,
   scheduled = function(it) return it.scheduled and it.scheduled:days_from_today() or math.huge end,
+  deadline_time  = function(it) return it.deadline  and it.deadline:to_time()  or math.huge end,
+  scheduled_time = function(it) return it.scheduled and it.scheduled:to_time() or math.huge end,
   priority  = function(it) return prio_rank(it.priority) end,
   todo      = function(_, ranker) return function(it) return ranker(it.todo_state) end end,
   filename  = function(it) return (it.file or ''):match('[^/]+$') or '' end,
@@ -32,7 +33,7 @@ local function cmp_with_order(a, b, asc)
   if asc then return a < b else return a > b end
 end
 
--- spec: { by = 'deadline'|'scheduled'|'priority'|'todo'|'filename'|'headline'|'date_nearest',
+-- spec: { by = 'deadline'|'scheduled'|'deadline_time'|'scheduled_time'|'priority'|'todo'|'filename'|'headline'|'date_nearest',
 --         order = 'asc'|'desc' }
 function S.sort_items(items, spec, cfg)
   spec = spec or {}

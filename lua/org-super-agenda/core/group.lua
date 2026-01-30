@@ -10,7 +10,7 @@ function G.group_items(raw, spec)
 
   local list, map = {}, {}
   for _, g in ipairs(groups_spec) do
-    local entry = { name = g.name, items = {} }
+    local entry = { name = g.name, items = {}, sort = g.sort }
     list[#list+1] = entry
     map[g.name] = entry
   end
