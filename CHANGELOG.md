@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0](https://github.com/hamidi-dev/org-super-agenda.nvim/compare/v1.0.0...v1.1.0) (2026-02-25)
+
+### Features
+
+* add has:todo query flag for filtering items by TODO state ([f5bce8f](https://github.com/hamidi-dev/org-super-agenda.nvim/commit/f5bce8fedf06362edb7ddc4f16aae4457c810ddf)), closes [#9](https://github.com/hamidi-dev/org-super-agenda.nvim/issues/9)
+
 ## 1.0.0 (2026-01-30)
 
 ### ⚠ BREAKING CHANGES
