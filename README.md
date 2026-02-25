@@ -223,6 +223,8 @@ file:notes         # filename contains substring
  after:2025-08-01  # scheduled after absolute date
  is:overdue        # scheduled/deadline in the past
  is:done           # DONE items only
+ has:todo          # items with TODO state (excludes plain events)
+ -has:todo         # items without TODO state (events only)
  words here        # free-text includes (AND)
  -noise            # free-text excludes
 ```
@@ -235,6 +237,12 @@ prio:A tag:work due<5
 
 # Upcoming personal, not waiting
 tag:personal -WAITING sched>=0
+
+# Only tasks (no events) with work tag
+has:todo tag:work
+
+# Only events (no TODO state) tagged personal
+-has:todo tag:personal
 ```
 
 ---

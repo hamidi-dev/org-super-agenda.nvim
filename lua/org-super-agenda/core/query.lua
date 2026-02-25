@@ -19,7 +19,7 @@ function Q.parse(q)
   local P = {
     inc = {}, exc = {}, tags_inc = {}, tags_exc = {}, file_inc = {}, todo = {},
     prio = { op=nil, val=nil },
-    due=nil, sched=nil, before=nil, after=nil, is_overdue=false, is_done=false,
+    due=nil, sched=nil, before=nil, after=nil, is_overdue=false, is_done=false, has_todo=nil,
   }
   local function splitbar(s) local r={}; for p in s:gmatch('[^|]+') do r[#r+1]=p end; return r end
 
@@ -48,6 +48,8 @@ function Q.parse(q)
       P.is_overdue = true
     elseif t == 'is:done' then
       P.is_done = true
+    elseif t == 'has:todo' then
+      P.has_todo = not neg
     else
       (neg and P.exc or P.inc)[#(neg and P.exc or P.inc) + 1] = t:lower()
     end
@@ -103,6 +105,11 @@ function Q.parse(q)
       if not over then return false end
     end
     if P.is_done and (it.todo_state ~= 'DONE') then return false end
+    if P.has_todo ~= nil then
+      local has = it.todo_state ~= nil and it.todo_state ~= ''
+      if P.has_todo and not has then return false end
+      if not P.has_todo and has then return false end
+    end
     return true
   end
 

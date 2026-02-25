@@ -162,6 +162,52 @@ describe('query.parse', function()
     assert.is_false(q.matches(item2))
   end)
 
+  it('matches items with TODO state using has:todo', function()
+    local q = Query.parse('has:todo')
+    local item1 = Item.new{ headline = 'Task', todo_state = 'TODO' }
+    local item2 = Item.new{ headline = 'Task', todo_state = 'DONE' }
+    local item3 = Item.new{ headline = 'Task', todo_state = 'NEXT' }
+    local item4 = Item.new{ headline = 'Event', todo_state = nil }
+    local item5 = Item.new{ headline = 'Event', todo_state = '' }
+    assert.is_true(q.matches(item1))
+    assert.is_true(q.matches(item2))
+    assert.is_true(q.matches(item3))
+    assert.is_false(q.matches(item4))
+    assert.is_false(q.matches(item5))
+  end)
+
+  it('excludes items with TODO state using -has:todo', function()
+    local q = Query.parse('-has:todo')
+    local item1 = Item.new{ headline = 'Event', todo_state = nil }
+    local item2 = Item.new{ headline = 'Event', todo_state = '' }
+    local item3 = Item.new{ headline = 'Task', todo_state = 'TODO' }
+    local item4 = Item.new{ headline = 'Task', todo_state = 'DONE' }
+    assert.is_true(q.matches(item1))
+    assert.is_true(q.matches(item2))
+    assert.is_false(q.matches(item3))
+    assert.is_false(q.matches(item4))
+  end)
+
+  it('combines has:todo with other conditions', function()
+    local q = Query.parse('has:todo tag:work')
+    local item1 = Item.new{ headline = 'Work Task', todo_state = 'TODO', tags = {'work'} }
+    local item2 = Item.new{ headline = 'Work Event', todo_state = nil, tags = {'work'} }
+    local item3 = Item.new{ headline = 'Personal Task', todo_state = 'TODO', tags = {'personal'} }
+    assert.is_true(q.matches(item1))
+    assert.is_false(q.matches(item2))
+    assert.is_false(q.matches(item3))
+  end)
+
+  it('combines -has:todo with other conditions', function()
+    local q = Query.parse('-has:todo tag:personal')
+    local item1 = Item.new{ headline = 'Personal Event', todo_state = nil, tags = {'personal'} }
+    local item2 = Item.new{ headline = 'Personal Task', todo_state = 'TODO', tags = {'personal'} }
+    local item3 = Item.new{ headline = 'Work Event', todo_state = nil, tags = {'work'} }
+    assert.is_true(q.matches(item1))
+    assert.is_false(q.matches(item2))
+    assert.is_false(q.matches(item3))
+  end)
+
   it('combines multiple query conditions with AND logic', function()
     local q = Query.parse('meeting tag:work prio:A')
     local item1 = Item.new{ headline = 'Work Meeting', tags = {'work'}, priority = 'A' }
