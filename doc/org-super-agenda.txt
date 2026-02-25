@@ -169,6 +169,8 @@ before:2025-12-31   deadline before absolute date
 after:2025-08-01    scheduled after absolute date
 is\:overdue          deadline or schedule in the past
 is\:done             only DONE
+has\:todo            items with TODO state (excludes plain events)
+-has\:todo           items without TODO state (events only)
 words here          free-text includes (AND)
 -noise               free-text excludes
 
@@ -182,6 +184,8 @@ prio:A tag:work due<5
 
 ```
 tag:personal -WAITING sched>=0
+has:todo tag:work
+-has:todo tag:personal
 ```
 
 <
