@@ -11,6 +11,80 @@ local function key_for_hl(hl)
   return string.format('%s:%s', fname, hl.position and hl.position.start_line or 0)
 end
 
+local function get_org_clock()
+  local ok_org, org = pcall(require, 'orgmode')
+  if not ok_org or type(org.instance) ~= 'function' then
+    return nil, 'orgmode not available'
+  end
+  local ok_inst, inst = pcall(org.instance)
+  if not ok_inst or not inst or not inst.clock then
+    return nil, 'orgmode clock is unavailable'
+  end
+  return inst.clock
+end
+
+local function clock_in_headline(hl)
+  local _, err = get_org_clock()
+  if err then return nil, err end
+
+  if type(hl._do_action) ~= 'function' then
+    return nil, 'Selected headline does not support clock actions'
+  end
+
+  return hl:_do_action(function()
+    local org = require('orgmode')
+    local clock = org.instance().clock
+    clock:org_clock_in()
+  end)
+end
+
+local function clock_out_active()
+  local clock, err = get_org_clock()
+  if not clock then return nil, err end
+  local org = require('orgmode')
+  clock:update_clocked_headline()
+  local active = clock.clocked_headline
+  if not (active and active.is_clocked_in and active:is_clocked_in()) then
+    active = org.instance().files:get_clocked_headline()
+  end
+  if not (active and active.is_clocked_in and active:is_clocked_in()) then
+    return nil
+  end
+  return active.file:update(function()
+    local reloaded = active.file:reload_sync():get_closest_headline({ active:get_range().start_line, 0 })
+    reloaded:clock_out()
+    clock.clocked_headline = nil
+  end)
+end
+
+local function clock_cancel_active()
+  local clock, err = get_org_clock()
+  if not clock then return nil, err end
+  local org = require('orgmode')
+  clock:update_clocked_headline()
+  local active = clock.clocked_headline
+  if not (active and active.is_clocked_in and active:is_clocked_in()) then
+    active = org.instance().files:get_clocked_headline()
+  end
+  if not (active and active.is_clocked_in and active:is_clocked_in()) then
+    return nil
+  end
+  return active.file:update(function()
+    local reloaded = active.file:reload_sync():get_closest_headline({ active:get_range().start_line, 0 })
+    reloaded:cancel_active_clock()
+    clock.clocked_headline = nil
+  end)
+end
+
+local function clock_goto_active()
+  local clock, err = get_org_clock()
+  if not clock then return false, err end
+  local before = vim.api.nvim_get_current_buf()
+  clock:org_clock_goto()
+  local after = vim.api.nvim_get_current_buf()
+  return before ~= after, nil
+end
+
 -- === helpers: swap detection, buffer status, snapshots, safe writes ===
 local function has_swap_for(path)
   -- Heuristic: look for .*{basename}*.sw?
@@ -743,6 +817,81 @@ function A.set_keymaps(buf, win, line_map, reopen)
   -- preview
   if cfg.keymaps.preview and cfg.keymaps.preview ~= '' then
     vim.keymap.set('n', cfg.keymaps.preview, function() preview_headline(line_map) end, { buffer = buf, silent = true })
+  end
+
+  if cfg.keymaps.clock_in and cfg.keymaps.clock_in ~= '' then
+    vim.keymap.set('n', cfg.keymaps.clock_in, function()
+      with_headline(line_map, function(cur, hl)
+        local p, err = clock_in_headline(hl)
+        if err then
+          vim.notify(err, vim.log.levels.WARN)
+          return
+        end
+        if p and type(p.next) == 'function' then
+          p:next(function() Services.agenda.refresh(cur) end)
+        else
+          Services.agenda.refresh(cur)
+        end
+      end)
+    end, { buffer = buf, silent = true })
+  end
+
+  if cfg.keymaps.clock_out and cfg.keymaps.clock_out ~= '' then
+    vim.keymap.set('n', cfg.keymaps.clock_out, function()
+      local cur = vim.api.nvim_win_get_cursor(0)
+      local p, err = clock_out_active()
+      if err then
+        vim.notify(err, vim.log.levels.WARN)
+        return
+      end
+      if p and type(p.next) == 'function' then
+        p:next(function() Services.agenda.refresh(cur) end)
+      else
+        Services.agenda.refresh(cur)
+      end
+    end, { buffer = buf, silent = true })
+  end
+
+  if cfg.keymaps.clock_cancel and cfg.keymaps.clock_cancel ~= '' then
+    vim.keymap.set('n', cfg.keymaps.clock_cancel, function()
+      local cur = vim.api.nvim_win_get_cursor(0)
+      local p, err = clock_cancel_active()
+      if err then
+        vim.notify(err, vim.log.levels.WARN)
+        return
+      end
+      if p and type(p.next) == 'function' then
+        p:next(function() Services.agenda.refresh(cur) end)
+      else
+        Services.agenda.refresh(cur)
+      end
+    end, { buffer = buf, silent = true })
+  end
+
+  if cfg.keymaps.clock_goto and cfg.keymaps.clock_goto ~= '' then
+    vim.keymap.set('n', cfg.keymaps.clock_goto, function()
+      local agendabuf = vim.api.nvim_get_current_buf()
+      local cur = vim.api.nvim_win_get_cursor(0)
+      local jumped, err = clock_goto_active()
+      if err then
+        vim.notify(err, vim.log.levels.WARN)
+        return
+      end
+      if not jumped then return end
+      local filebuf = vim.api.nvim_get_current_buf()
+      if filebuf == agendabuf then return end
+      pcall(vim.api.nvim_buf_delete, agendabuf, { force = true })
+      vim.api.nvim_create_autocmd('BufWinLeave', {
+        buffer = filebuf,
+        once = true,
+        callback = function()
+          vim.schedule(function()
+            pcall(vim.api.nvim_buf_delete, filebuf, { force = true })
+            reopen(cur)
+          end)
+        end,
+      })
+    end, { buffer = buf, silent = true })
   end
 
   -- <Tab>: toggle group fold on group header, otherwise preview item

@@ -25,6 +25,7 @@ local function classic_prefix(it, cfg)
 end
 
 local MARK_GLYPH = '● '
+local CLOCK_GLYPH = '⏱ '
 
 local function item_key(it) return string.format('%s:%s', it.file or '', it._src_line or 0) end
 
@@ -55,7 +56,8 @@ function L.build(groups, win_width, cfg, marked)
       if not grp.collapsed then
         for _, it in ipairs(grp.items) do
         local is_marked = marked and marked[item_key(it)]
-        local indent = (is_marked and MARK_GLYPH or '  ') .. string.rep(' ', it.level or 0)
+        local clock_pfx = it.clocked_in and CLOCK_GLYPH or ''
+        local indent = (is_marked and MARK_GLYPH or '  ') .. clock_pfx .. string.rep(' ', it.level or 0)
         local pri = (it.priority and it.priority ~= '') and ('[#' .. it.priority .. ']') or nil
         local sched_label = cfg.classic.short_date_labels and 'S' or 'SCHEDULED'
         local dead_label  = cfg.classic.short_date_labels and 'D' or 'DEADLINE'
@@ -111,6 +113,10 @@ function L.build(groups, win_width, cfg, marked)
         end
         if is_marked then
           hls[#hls + 1] = { lnum - 1, 0, #MARK_GLYPH, 'OrgSA_Marked', field = 'mark', state = it.todo_state }
+        end
+        if it.clocked_in then
+          local cstart = is_marked and #MARK_GLYPH or 2
+          hls[#hls + 1] = { lnum - 1, cstart, cstart + #CLOCK_GLYPH, 'OrgSA_Clock', field = 'clock', state = it.todo_state }
         end
 
         if not cfg.classic.inline_dates and meta_str ~= '' then

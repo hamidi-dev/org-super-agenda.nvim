@@ -4,6 +4,7 @@ local L = {}
 local function truncate(str, len) if not len or #str <= len then return str end return str:sub(1, len) end
 
 local MARK_GLYPH = '● '
+local CLOCK_GLYPH = '⏱ '
 local function item_key(it) return string.format('%s:%s', it.file or '', it._src_line or 0) end
 
 local function header_label(cfg, grp)
@@ -67,7 +68,7 @@ function L.build(groups, win_width, cfg, marked)
         if it.has_more then head = head .. ' …' end
 
         local is_marked = marked and marked[item_key(it)]
-        local mark_pfx = is_marked and MARK_GLYPH or '  '
+        local mark_pfx = (is_marked and MARK_GLYPH or '  ') .. (it.clocked_in and CLOCK_GLYPH or '')
         local text, spans = mark_pfx, {}
         local s_fn  = #text; text = text .. string.format('%-' .. fname_w .. 's', name); spans[#spans+1] = {field='filename', s=s_fn, e=#text, state=it.todo_state}
         local s_lab = #text; text = text .. label; spans[#spans+1] = {field='date', s=s_lab, e=#text, state=it.todo_state}
@@ -90,6 +91,10 @@ function L.build(groups, win_width, cfg, marked)
         end
         if is_marked then
           hls[#hls + 1] = { lnum - 1, 0, #MARK_GLYPH, 'OrgSA_Marked', field = 'mark', state = it.todo_state }
+        end
+        if it.clocked_in then
+          local cstart = is_marked and #MARK_GLYPH or 2
+          hls[#hls + 1] = { lnum - 1, cstart, cstart + #CLOCK_GLYPH, 'OrgSA_Clock', field = 'clock', state = it.todo_state }
         end
         end
       end

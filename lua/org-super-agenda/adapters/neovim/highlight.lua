@@ -7,6 +7,7 @@ function H.ensure()
   vim.cmd('highlight default OrgSA_Group gui=bold')
   pcall(vim.cmd, 'highlight default OrgSA_NONE guifg=#A0A0A0 gui=bold')
   pcall(vim.cmd, 'highlight default OrgSA_Marked guifg=#FFB86C gui=bold')
+  pcall(vim.cmd, 'highlight default OrgSA_Clock guifg=#8BE9FD gui=bold')
 
   for _, st in ipairs(get_cfg().todo_states or {}) do
     local hl_group = st.hl_group or (type(st.highlight) == 'string' and st.highlight) or ('OrgSA_' .. st.name)
@@ -35,4 +36,3 @@ function H.group(state)
 end
 
 return H
-

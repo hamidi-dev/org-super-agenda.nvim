@@ -33,10 +33,13 @@ a group header to toggle collapse/expand.
         st/sp/sw/sd  Set state directly (TODO/PROGRESS/WAITING/DONE)
         s0        Clear TODO state
         s (wait)  Show state menu with colors
+        I / O     Clock in / clock out
+        X         Cancel active clock
+        gI        Jump to active clock task
         D         Toggle allowing duplicates across groups
         zM / zR   Fold all / unfold all groups
         ov        Switch view mode (classic ↔ compact)
-        x / X     Hide current item / reset hidden list
+        x / gX    Hide current item / reset hidden list
         R         Refile via Telescope (see |org-super-agenda-refile|)
 ```
 
@@ -168,6 +171,24 @@ Custom TODO state order per group \
 <
 
 ===============================================================================
+CLOCKING                                                  *org-super-agenda-clocking*
+
+Clock actions are integrated directly in agenda view:
+
+* `I`    clock in item under cursor
+* `O`    clock out current active clock
+* `X`    cancel current active clock
+* `gI`   jump to active/recent clocked task
+
+Visual indicators:
+
+* active clock items are prefixed with `⏱`
+* active clock statusline is shown at the bottom of the agenda window
+
+NOTE: default `reset_hidden` key changed from `X` to `gX` because `X`
+is now used for clock cancel.
+
+==============================================================================
 GROUP FOLDING                                            *org-super-agenda-folding*
 
 Group headers show item counts in this format:
@@ -321,7 +342,11 @@ M.defaults = {
     refile            = 'R',
     hide_item         = 'x',
     preview           = 'K',
-    reset_hidden      = 'X',
+    clock_in          = 'I',
+    clock_out         = 'O',
+    clock_cancel      = 'X',
+    clock_goto        = 'gI',
+    reset_hidden      = 'gX',
     fold_all          = 'zM',
     unfold_all        = 'zR',
     toggle_duplicates = 'D',
