@@ -137,7 +137,7 @@ scheduled      days from today (negative = past)
 deadline_time  exact date+time (includes hour:minute when available)
 scheduled_time exact date+time (includes hour:minute when available)
 priority       A > B > C
-todo           order of your `todo_states`
+todo           order of your `todo_states` (or custom `sort.todo_order`)
 filename       basename (ascending)
 headline       case-insensitive title
 
@@ -146,6 +146,24 @@ Tie-breakers: priority desc, then filename asc, then headline asc.
 NOTE: Items with time-of-day (e.g., SCHEDULED: <2026-01-31 09:00>) are
 displayed with their times in classic view. Use `scheduled_time` or
 `deadline_time` sort keys to order by exact timestamp instead of just date.
+
+Custom TODO state order per group \
+
+>
+
+```
+{
+  name = '📅 Today',
+  matcher = function(i) return i.scheduled and i.scheduled:is_today() end,
+  sort = {
+    by = 'todo',
+    order = 'asc',
+    todo_order = { 'PROGRESS', 'NEXT', 'TODO', 'WAIT', 'CANX', 'DONE' },
+  }
+}
+```
+
+<
 
 ===============================================================================
 FILTERS & QUERY                                               *org-super-agenda-query*
@@ -295,7 +313,8 @@ M.defaults = {
     { name = 'DONE',     keymap = 'od', color = '#50FA7B', strike_through = true,  fields = { 'filename', 'todo', 'headline', 'priority', 'date', 'tags' } },
   },
 
-  -- You can add per-group { sort = { by='deadline'|'scheduled'|'priority'|'todo'|'filename'|'headline'|'date_nearest', order='asc'|'desc' } }
+  -- You can add per-group { sort = { by='deadline'|'scheduled'|'deadline_time'|'scheduled_time'|'priority'|'todo'|'filename'|'headline'|'date_nearest', order='asc'|'desc' } }
+  -- For `by='todo'`, you can optionally add `todo_order = { 'PROGRESS', 'NEXT', 'TODO', 'DONE' }`
   groups              = {
     {
       name = "📅 Today",
