@@ -11,6 +11,18 @@ local function todo_rank_factory(cfg)
   return function(state) return rank[state or ''] or 999 end
 end
 
+local function todo_rank_from_order(order)
+  local rank = {}
+  if type(order) == 'table' then
+    for i, state in ipairs(order) do
+      if type(state) == 'string' and state ~= '' then
+        rank[state] = i
+      end
+    end
+  end
+  return function(state) return rank[state or ''] or 999 end
+end
+
 local key_getters = {
   date_nearest = function(it)
     local d1 = it.deadline  and it.deadline:days_from_today()
@@ -44,7 +56,9 @@ function S.sort_items(items, spec, cfg)
   local getter = key_getters[by]
   if not getter then return items end
 
-  local todo_rank = todo_rank_factory(cfg)
+  local todo_rank = (by == 'todo' and spec.todo_order)
+      and todo_rank_from_order(spec.todo_order)
+      or todo_rank_factory(cfg)
   local keyf = (by == 'todo') and getter(nil, todo_rank) or getter
 
   table.sort(items, function(a, b)
@@ -65,4 +79,3 @@ function S.sort_items(items, spec, cfg)
 end
 
 return S
-

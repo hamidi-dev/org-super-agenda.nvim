@@ -173,7 +173,7 @@ Supported sort keys:
 * `deadline`, `scheduled` (days from today)
 * `deadline_time`, `scheduled_time` (sorts by exact date+time when available)
 * `priority` (A > B > C)
-* `todo` (order of your `todo_states`)
+* `todo` (order of your `todo_states`, or custom `sort.todo_order`)
 * `filename`, `headline`
 
 Tie‑breakers: **priority desc**, then filename asc, then headline asc.
@@ -196,6 +196,17 @@ group_sort = { by = 'date_nearest', order = 'asc' }
   name = '📅 Today', 
   matcher = function(i) return i.scheduled and i.scheduled:is_today() end, 
   sort = { by = 'scheduled_time', order = 'asc' } 
+}
+
+-- Sort by custom TODO order (per group)
+{
+  name = '📅 Today',
+  matcher = function(i) return i.scheduled and i.scheduled:is_today() end,
+  sort = {
+    by = 'todo',
+    order = 'asc',
+    todo_order = { 'PROGRESS', 'NEXT', 'TODO', 'WAIT', 'CANX', 'DONE' },
+  }
 }
 ```
 

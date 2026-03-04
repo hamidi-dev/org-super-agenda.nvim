@@ -88,6 +88,24 @@ describe('sort.sort_items', function()
     assert.equals('done', sorted[3].headline)
   end)
 
+  it('sorts by custom todo state order from spec', function()
+    local items = {
+      Item.new{ headline = 'done', todo_state = 'DONE' },
+      Item.new{ headline = 'next', todo_state = 'NEXT' },
+      Item.new{ headline = 'todo', todo_state = 'TODO' },
+      Item.new{ headline = 'progress', todo_state = 'PROGRESS' },
+    }
+    local sorted = Sort.sort_items(items, {
+      by = 'todo',
+      order = 'asc',
+      todo_order = { 'PROGRESS', 'NEXT', 'TODO', 'DONE' },
+    }, config.get())
+    assert.equals('progress', sorted[1].headline)
+    assert.equals('next', sorted[2].headline)
+    assert.equals('todo', sorted[3].headline)
+    assert.equals('done', sorted[4].headline)
+  end)
+
   it('sorts by filename', function()
     local items = {
       Item.new{ headline = 'z', file = '/path/to/zebra.org' },
