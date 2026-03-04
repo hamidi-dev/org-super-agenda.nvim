@@ -50,6 +50,7 @@ function U.show_help()
   vim.list_extend(lines, {
     'Misc:',
     fmt('<CR>', 'Open headline'),
+    fmt('<Tab>', 'Toggle fold on group header'),
     fmt(km.reload, 'Reload agenda'),
     fmt(km.cycle_todo, 'Cycle TODO-States'),
     fmt(km.set_state, 'Set state (menu)'),
@@ -59,6 +60,8 @@ function U.show_help()
     fmt(km.cycle_view, 'Switch view (classic/compact)'),
     fmt(km.hide_item, 'Hide headline from agenda'),
     fmt(km.reset_hidden, 'Reset hide'),
+    fmt(km.fold_all, 'Fold all groups'),
+    fmt(km.unfold_all, 'Unfold all groups'),
     fmt(km.refile, 'Refile headline [<C-Space> toggles mode]'),
     fmt('q / <Esc>', 'Close agenda'),
     '',

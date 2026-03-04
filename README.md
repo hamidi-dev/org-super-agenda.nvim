@@ -28,6 +28,7 @@ A Neovim plugin inspired by [org-super-agenda](https://github.com/alphapapa/org-
 * **Hide item** (`x`) / **reset hidden** (`X`) with optional persistence
 * **Undo last change** (`u`) within the agenda
 * **Toggle duplicates** across groups (`D`)
+* **Group folding**: `<Tab>` on headers, fold all (`zM`), unfold all (`zR`)
 * **Switch view** between `classic` and `compact` (`ov`)
 * **Right‑aligned tags**, customizable header format, and filename display
 * **Safety**: refuses edits when a swapfile is present or buffer is modified elsewhere
@@ -92,6 +93,8 @@ return {
         hide_item         = 'x',  -- hide current item
         preview           = 'K',  -- preview headline content
         reset_hidden      = 'X',  -- clear hidden list
+        fold_all          = 'zM', -- collapse all groups
+        unfold_all        = 'zR', -- expand all groups
         toggle_duplicates = 'D',  -- duplicate items may appear in multiple groups
         cycle_view        = 'ov', -- switch view (classic/compact)
         bulk_mark         = 'm',  -- toggle mark on current item (● indicator)
@@ -296,6 +299,15 @@ All bulk operations are undoable individually via `u`.
 * **compact**: fixed columns for filename and date label (`Sched. in 3 d.:`), right-aligned tags
 
 Switch with `ov` (or set `view_mode` in config).
+
+---
+
+## 🗂️ Group folding
+
+* Group headers include item counts: `* 📅 Today (12 items)`
+* Press `<Tab>` on a group header to collapse/expand that group
+* Press `<Tab>` on an item line to preview (same behavior as `K`)
+* Collapse all groups with `zM`, expand all with `zR`
 
 ---
 

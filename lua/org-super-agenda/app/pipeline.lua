@@ -37,6 +37,7 @@ function Pipeline.run(source, cfg, state)
   for _, g in ipairs(groups) do
     local spec = (g.sort and type(g.sort) == 'table') and g.sort or nil
     sort_core.sort_items(g.items, spec, cfg)
+    g.collapsed = state.collapsed_groups and state.collapsed_groups[g.name] == true
   end
 
   -- "sticky" DONE items (turned DONE during this session) stay visible
@@ -49,7 +50,12 @@ function Pipeline.run(source, cfg, state)
   if #sticky > 0 then
     -- Keep the "Done (this session)" section sorted by recency-ish: nearest date then priority
     sort_core.sort_items(sticky, { by='date_nearest', order='asc' }, cfg)
-    groups[#groups+1] = { name = '✅ Done (this session)', items = sticky }
+    local sticky_name = '✅ Done (this session)'
+    groups[#groups+1] = {
+      name = sticky_name,
+      items = sticky,
+      collapsed = state.collapsed_groups and state.collapsed_groups[sticky_name] == true,
+    }
   end
 
   -- choose layout
@@ -61,4 +67,3 @@ function Pipeline.run(source, cfg, state)
 end
 
 return Pipeline
-

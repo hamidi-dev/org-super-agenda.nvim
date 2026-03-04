@@ -246,6 +246,16 @@ local function preview_headline(line_map)
   end)
 end
 
+local function toggle_group_on_cursor(line_map)
+  local cur = vim.api.nvim_win_get_cursor(0)
+  local entry = line_map[cur[1]]
+  if not (entry and entry._kind == 'group_header' and entry.group_name) then
+    return false
+  end
+  require('org-super-agenda').toggle_group(entry.group_name, cur)
+  return true
+end
+
 local function apply_with_undo_snapshot(cur, snap, op_fn)
   Store.push_undo(make_restore_from_snapshot(snap))
   local p = op_fn()
@@ -733,6 +743,25 @@ function A.set_keymaps(buf, win, line_map, reopen)
   -- preview
   if cfg.keymaps.preview and cfg.keymaps.preview ~= '' then
     vim.keymap.set('n', cfg.keymaps.preview, function() preview_headline(line_map) end, { buffer = buf, silent = true })
+  end
+
+  -- <Tab>: toggle group fold on group header, otherwise preview item
+  vim.keymap.set('n', '<Tab>', function()
+    if not toggle_group_on_cursor(line_map) then
+      preview_headline(line_map)
+    end
+  end, { buffer = buf, silent = true })
+
+  if cfg.keymaps.fold_all and cfg.keymaps.fold_all ~= '' then
+    vim.keymap.set('n', cfg.keymaps.fold_all, function()
+      require('org-super-agenda').fold_all()
+    end, { buffer = buf, silent = true, nowait = true })
+  end
+
+  if cfg.keymaps.unfold_all and cfg.keymaps.unfold_all ~= '' then
+    vim.keymap.set('n', cfg.keymaps.unfold_all, function()
+      require('org-super-agenda').unfold_all()
+    end, { buffer = buf, silent = true, nowait = true })
   end
 
   -- hide/reset hidden
