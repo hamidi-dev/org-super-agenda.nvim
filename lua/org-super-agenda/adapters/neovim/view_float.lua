@@ -4,6 +4,16 @@ local get_cfg = require('org-super-agenda.config').get
 
 local V = { _buf=nil, _win=nil, _line_map={}, _ns = vim.api.nvim_create_namespace('OrgSuperAgenda') }
 
+local function active_clock_status()
+  local ok, org = pcall(require, 'orgmode')
+  if not ok or type(org.instance) ~= 'function' then return '' end
+  local ok_inst, inst = pcall(org.instance)
+  if not ok_inst or not inst or not inst.clock or type(inst.clock.get_statusline) ~= 'function' then return '' end
+  local ok_status, status = pcall(inst.clock.get_statusline, inst.clock)
+  if not ok_status or type(status) ~= 'string' then return '' end
+  return status
+end
+
 function V.is_open()
   return V._buf and vim.api.nvim_buf_is_valid(V._buf)
      and V._win and vim.api.nvim_win_is_valid(V._win)
@@ -55,6 +65,12 @@ local function draw_into(buf, win, producer, cursor, opts)
 
   local rows, hls, new_map = producer(sz.win_w)
 
+  local clock = active_clock_status()
+  if clock ~= '' then
+    rows[#rows + 1] = '⏱  ' .. clock
+    hls[#hls + 1]   = { (#rows - 1), 0, -1, 'OrgSA_Clock', field='clock_status' }
+  end
+
   rows[#rows + 1] = ''
   rows[#rows + 1] = '🔍  g? for help'
   hls[#hls + 1]   = { (#rows - 1), 0, -1, 'Comment', field='help' }
@@ -87,6 +103,11 @@ function V.render(producer, cursor, _mode, opts)
   local sz  = sizes(opts)
 
   local rows, hls, line_map = producer(sz.win_w)
+  local clock = active_clock_status()
+  if clock ~= '' then
+    rows[#rows + 1] = '⏱  ' .. clock
+    hls[#hls + 1]   = { (#rows - 1), 0, -1, 'OrgSA_Clock', field='clock_status' }
+  end
   rows[#rows + 1] = ''
   rows[#rows + 1] = '🔍  g? for help'
   hls[#hls + 1]   = { (#rows - 1), 0, -1, 'Comment', field='help' }
@@ -130,4 +151,3 @@ function V.update(producer, cursor, _mode, opts)
 end
 
 return V
-

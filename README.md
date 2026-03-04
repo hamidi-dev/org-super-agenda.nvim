@@ -25,7 +25,8 @@ A Neovim plugin inspired by [org-super-agenda](https://github.com/alphapapa/org-
 * **Direct state setting** via `s` prefix (e.g., `st`, `sd`) with colored menu fallback
 * **Priority tools**: `A`, `B`, `C`, `+`, `-`, `0`
 * **Preview headline** (`K`), **open** (`<CR>`), **refile** (`R`)
-* **Hide item** (`x`) / **reset hidden** (`X`) with optional persistence
+* **Clock integration**: clock in (`I`), clock out (`O`), cancel (`X`), jump (`gI`)
+* **Hide item** (`x`) / **reset hidden** (`gX`) with optional persistence
 * **Undo last change** (`u`) within the agenda
 * **Toggle duplicates** across groups (`D`)
 * **Group folding**: `<Tab>` on headers, fold all (`zM`), unfold all (`zR`)
@@ -92,7 +93,11 @@ return {
         refile            = 'R',  -- refile via Telescope/org-telescope
         hide_item         = 'x',  -- hide current item
         preview           = 'K',  -- preview headline content
-        reset_hidden      = 'X',  -- clear hidden list
+        clock_in          = 'I',  -- clock in on current headline
+        clock_out         = 'O',  -- clock out active clock
+        clock_cancel      = 'X',  -- cancel active clock
+        clock_goto        = 'gI', -- jump to active/recent clocked task
+        reset_hidden      = 'gX', -- clear hidden list
         fold_all          = 'zM', -- collapse all groups
         unfold_all        = 'zR', -- expand all groups
         toggle_duplicates = 'D',  -- duplicate items may appear in multiple groups
@@ -299,6 +304,19 @@ All bulk operations are undoable individually via `u`.
 * **compact**: fixed columns for filename and date label (`Sched. in 3 d.:`), right-aligned tags
 
 Switch with `ov` (or set `view_mode` in config).
+
+---
+
+## ⏱️ Clocking
+
+* `I` clocks in the task under cursor
+* `O` clocks out the currently active clock
+* `X` cancels the currently active clock
+* `gI` jumps to the active clock task
+* Active clock entries are marked with `⏱` in agenda rows
+* Active clock status is shown at the bottom of the agenda
+
+Note: default `reset_hidden` key changed from `X` to `gX` because `X` is now used for clock cancel.
 
 ---
 
