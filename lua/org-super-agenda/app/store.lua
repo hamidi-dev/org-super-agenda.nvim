@@ -11,6 +11,7 @@ local Store = {
     allow_duplicates = false,
     sticky_done = {},       -- items turned DONE during this session (keep visible)
     fullscreen = false,
+    collapsed_groups = {},  -- group_name -> true when collapsed
   }
 }
 
@@ -22,6 +23,31 @@ function Store.set_view_mode(m) Store.state.view_mode = m or 'classic' end
 function Store.set_fullscreen(v) Store.state.fullscreen = v == true end
 function Store.hide(key) Store.state.hidden[key] = true end
 function Store.reset_hidden() Store.state.hidden = {} end
+
+function Store.is_group_collapsed(name)
+  return Store.state.collapsed_groups[name] == true
+end
+
+function Store.toggle_group(name)
+  if not name or name == '' then return end
+  if Store.state.collapsed_groups[name] then
+    Store.state.collapsed_groups[name] = nil
+  else
+    Store.state.collapsed_groups[name] = true
+  end
+end
+
+function Store.fold_groups(names)
+  for _, name in ipairs(names or {}) do
+    if type(name) == 'string' and name ~= '' then
+      Store.state.collapsed_groups[name] = true
+    end
+  end
+end
+
+function Store.unfold_all_groups()
+  Store.state.collapsed_groups = {}
+end
 
 function Store.mark_toggle(key)
   if Store.state.marked[key] then Store.state.marked[key] = nil
@@ -61,4 +87,3 @@ function Store.sticky_has(key) return Store.state.sticky_done[key] == true end
 function Store.sticky_reset() Store.state.sticky_done = {} end
 
 return Store
-

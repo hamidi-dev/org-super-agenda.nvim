@@ -6,6 +6,12 @@ local function truncate(str, len) if not len or #str <= len then return str end 
 local MARK_GLYPH = '● '
 local function item_key(it) return string.format('%s:%s', it.file or '', it._src_line or 0) end
 
+local function header_label(cfg, grp)
+  local n = #grp.items
+  local count = string.format('%d %s', n, (n == 1) and 'item' or 'items')
+  return string.format((cfg.group_format or '* %s') .. ' (%s)', grp.name, count)
+end
+
 local function build_labels(it)
   local labels = {}
   if it.deadline then
@@ -46,10 +52,12 @@ function L.build(groups, win_width, cfg, marked)
   for _, grp in ipairs(groups) do
     if #grp.items > 0 then
       emit('')
-      local hdln = emit(string.format(cfg.group_format or '* %s', grp.name))
+      local hdln = emit(header_label(cfg, grp))
+      line_map[hdln] = { _kind = 'group_header', group_name = grp.name }
       hls[#hls + 1] = { hdln - 1, 0, -1, 'OrgSA_Group' }
 
-      for _, it in ipairs(grp.items) do
+      if not grp.collapsed then
+        for _, it in ipairs(grp.items) do
         local name = (((it.file or ''):match('[^/]+$') or ''):gsub('%.org$', '') .. ':')
         local label = build_labels(it)
         if label == '' then label = string.rep(' ', label_w) else label = string.format('%-' .. label_w .. 's', label) end
@@ -83,6 +91,7 @@ function L.build(groups, win_width, cfg, marked)
         if is_marked then
           hls[#hls + 1] = { lnum - 1, 0, #MARK_GLYPH, 'OrgSA_Marked', field = 'mark', state = it.todo_state }
         end
+        end
       end
     end
   end
@@ -91,4 +100,3 @@ function L.build(groups, win_width, cfg, marked)
 end
 
 return L
-

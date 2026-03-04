@@ -23,7 +23,8 @@ Press the keymap defined for a TODO state to filter by it and
 `oa` to reset the filter. Use `cs` to reschedule, `cd` to set a
 deadline, `t` to cycle TODO state, `s` to set state directly,
 and `r` to refresh the agenda from disk. Press `K` to preview
-the current headline and `q` to close the preview.
+the current headline and `q` to close the preview. Press <Tab> on
+a group header to toggle collapse/expand.
 
 ```
     Additional useful keys:
@@ -33,6 +34,7 @@ the current headline and `q` to close the preview.
         s0        Clear TODO state
         s (wait)  Show state menu with colors
         D         Toggle allowing duplicates across groups
+        zM / zR   Fold all / unfold all groups
         ov        Switch view mode (classic ↔ compact)
         x / X     Hide current item / reset hidden list
         R         Refile via Telescope (see |org-super-agenda-refile|)
@@ -166,6 +168,24 @@ Custom TODO state order per group \
 <
 
 ===============================================================================
+GROUP FOLDING                                            *org-super-agenda-folding*
+
+Group headers show item counts in this format:
+
+>
+
+```
+* 📅 Today (12 items)
+```
+
+<
+
+Use `<Tab>` on a group header to collapse/expand that group.
+Use `zM` to fold all groups and `zR` to unfold all groups.
+
+When cursor is on a normal item line, `<Tab>` behaves like preview (`K`).
+
+==============================================================================
 FILTERS & QUERY                                               *org-super-agenda-query*
 
 Quick filters \~
@@ -302,6 +322,8 @@ M.defaults = {
     hide_item         = 'x',
     preview           = 'K',
     reset_hidden      = 'X',
+    fold_all          = 'zM',
+    unfold_all        = 'zR',
     toggle_duplicates = 'D',
     cycle_view        = 'ov',
   },

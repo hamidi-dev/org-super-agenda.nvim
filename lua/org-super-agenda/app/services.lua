@@ -73,6 +73,33 @@ end
 
 function Services.agenda.reset_hidden() store.reset_hidden() end
 
+function Services.agenda.toggle_group(group_name, cursor)
+  if not group_name or group_name == '' then return end
+  store.toggle_group(group_name)
+  Services.agenda.refresh(cursor or (view.is_open() and vim.api.nvim_win_get_cursor(0) or nil))
+end
+
+function Services.agenda.fold_all()
+  if not view.is_open() then return end
+  local line_map = view.line_map() or {}
+  local seen, names = {}, {}
+  for _, entry in pairs(line_map) do
+    if type(entry) == 'table' and entry._kind == 'group_header' and entry.group_name and not seen[entry.group_name] then
+      seen[entry.group_name] = true
+      names[#names + 1] = entry.group_name
+    end
+  end
+  store.fold_groups(names)
+  Services.agenda.refresh(vim.api.nvim_win_get_cursor(0))
+end
+
+function Services.agenda.unfold_all()
+  store.unfold_all_groups()
+  if view.is_open() then
+    Services.agenda.refresh(vim.api.nvim_win_get_cursor(0))
+  end
+end
+
 function Services.refile_start(src_file, s, e, lvl)
   local ok, ref = pcall(require, 'org-super-agenda.adapters.neovim.refile_telescope')
   if not ok then return vim.notify('Refile requires telescope + org-telescope', vim.log.levels.WARN) end
@@ -83,4 +110,3 @@ function Services.refile_start(src_file, s, e, lvl)
 end
 
 return Services
-

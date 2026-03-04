@@ -28,6 +28,12 @@ local MARK_GLYPH = '● '
 
 local function item_key(it) return string.format('%s:%s', it.file or '', it._src_line or 0) end
 
+local function header_label(cfg, grp)
+  local n = #grp.items
+  local count = string.format('%d %s', n, (n == 1) and 'item' or 'items')
+  return string.format((cfg.group_format or '* %s') .. ' (%s)', grp.name, count)
+end
+
 function L.build(groups, win_width, cfg, marked)
   local rows, hls, line_map = {}, {}, {}
   local widest = 0
@@ -42,10 +48,12 @@ function L.build(groups, win_width, cfg, marked)
   for _, grp in ipairs(groups) do
     if #grp.items > 0 then
       emit('')
-      local hdln = emit(string.format(cfg.group_format or '* %s', grp.name))
+      local hdln = emit(header_label(cfg, grp))
+      line_map[hdln] = { _kind = 'group_header', group_name = grp.name }
       hls[#hls + 1] = { hdln - 1, 0, -1, 'OrgSA_Group' }
 
-      for _, it in ipairs(grp.items) do
+      if not grp.collapsed then
+        for _, it in ipairs(grp.items) do
         local is_marked = marked and marked[item_key(it)]
         local indent = (is_marked and MARK_GLYPH or '  ') .. string.rep(' ', it.level or 0)
         local pri = (it.priority and it.priority ~= '') and ('[#' .. it.priority .. ']') or nil
@@ -108,6 +116,7 @@ function L.build(groups, win_width, cfg, marked)
         if not cfg.classic.inline_dates and meta_str ~= '' then
           local mln = emit(indent .. '  ' .. meta_str)
           hls[#hls + 1] = { mln - 1, #indent + 2, -1, nil, field='date', state=it.todo_state }
+        end
         end
       end
     end
