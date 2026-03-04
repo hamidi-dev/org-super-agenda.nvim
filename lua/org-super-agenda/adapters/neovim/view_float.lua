@@ -12,6 +12,15 @@ end
 function V.line_map() return V._line_map end
 
 local function add_hl(buf, row, col_start, col_end, entry)
+  if entry.field == 'mark' then
+    vim.api.nvim_buf_set_extmark(buf, V._ns, row, col_start, {
+      end_row = row,
+      end_col = col_end == -1 and col_start or col_end,
+      hl_group = 'OrgSA_Marked',
+      priority = 250,
+    })
+    return
+  end
   local group = entry[4] or hi.group(entry.state)
   vim.api.nvim_buf_add_highlight(buf, V._ns, group, row, col_start, col_end)
 end

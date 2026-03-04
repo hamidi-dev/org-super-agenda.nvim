@@ -19,6 +19,7 @@ A Neovim plugin inspired by [org-super-agenda](https://github.com/alphapapa/org-
 * **Smart groups**: Today, Tomorrow, Overdue, Upcoming, Important, Personal/Work, and **anything you script**
 * **Per-section sorting** (with global fallback)
 * **Live filtering**: exact (`of`), fuzzy (`oz`), and **advanced query** (`oq`)
+* **Bulk actions**: mark multiple items (`m`), then batch TODO state / reschedule / deadline
 * **Quick TODO filters** via per‑state keymaps (e.g. `ot`, `op`, `ow`, `od`)
 * **Inline editing** for TODO, priority, scheduled & deadline
 * **Direct state setting** via `s` prefix (e.g., `st`, `sd`) with colored menu fallback
@@ -93,6 +94,10 @@ return {
         reset_hidden      = 'X',  -- clear hidden list
         toggle_duplicates = 'D',  -- duplicate items may appear in multiple groups
         cycle_view        = 'ov', -- switch view (classic/compact)
+        bulk_mark         = 'm',  -- toggle mark on current item (● indicator)
+        bulk_unmark_all   = 'M',  -- clear all marks
+        bulk_reselect     = 'gv', -- reselect last marks
+        bulk_action       = 'B',  -- run action on all marked items
       },
 
       -- Window/appearance
@@ -247,6 +252,33 @@ has:todo tag:work
 
 ---
 
+## 📦 Bulk Actions
+
+Mark multiple items and apply an operation to all of them at once.
+
+| Key | Action |
+|-----|--------|
+| `m` | Toggle mark on current item (shows `●` indicator) |
+| `M` | Clear all marks |
+| `gv` | Reselect last marks (like vim `gv` for visual) |
+| `B` | Open bulk action menu for all marked items |
+
+After pressing `B`, choose an action:
+
+| Key | Bulk Action |
+|-----|------------|
+| `s` | Set TODO state (prompts for state) |
+| `r` | Reschedule (datepicker once, applied to all) |
+| `d` | Set deadline (datepicker once, applied to all) |
+
+**Example workflow:**
+1. `m` on several overdue tasks
+2. `B` → `r` → pick new date → all rescheduled at once
+
+All bulk operations are undoable individually via `u`.
+
+---
+
 ## 🧭 View modes
 
 * **classic**: headline prefix `[filename] TODO [#A] Title …` with inline or separate date line
@@ -321,4 +353,3 @@ PRs, issues, discussions welcome.
 ## 📄 License
 
 MIT License
-

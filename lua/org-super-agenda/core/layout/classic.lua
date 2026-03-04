@@ -4,7 +4,7 @@ local L = {}
 local function truncate(str, len) if not len or #str <= len then return str end return str:sub(1, len) end
 
 local function classic_prefix(it, cfg)
-  local indent = string.rep(' ', it.level or 0)
+  local indent = '  ' .. string.rep(' ', it.level or 0)
   local pri    = (it.priority and it.priority ~= '') and ('[#' .. it.priority .. ']') or nil
   local parts  = {
     filename = (cfg.show_filename and it.file) and (it.file:match('[^/]+$') or ''):gsub('%.org$', ''),
@@ -24,7 +24,11 @@ local function classic_prefix(it, cfg)
   return indent .. table.concat(tok, ' ')
 end
 
-function L.build(groups, win_width, cfg)
+local MARK_GLYPH = '● '
+
+local function item_key(it) return string.format('%s:%s', it.file or '', it._src_line or 0) end
+
+function L.build(groups, win_width, cfg, marked)
   local rows, hls, line_map = {}, {}, {}
   local widest = 0
   for _, g in ipairs(groups) do
@@ -42,7 +46,8 @@ function L.build(groups, win_width, cfg)
       hls[#hls + 1] = { hdln - 1, 0, -1, 'OrgSA_Group' }
 
       for _, it in ipairs(grp.items) do
-        local indent = string.rep(' ', it.level or 0)
+        local is_marked = marked and marked[item_key(it)]
+        local indent = (is_marked and MARK_GLYPH or '  ') .. string.rep(' ', it.level or 0)
         local pri = (it.priority and it.priority ~= '') and ('[#' .. it.priority .. ']') or nil
         local sched_label = cfg.classic.short_date_labels and 'S' or 'SCHEDULED'
         local dead_label  = cfg.classic.short_date_labels and 'D' or 'DEADLINE'
@@ -95,6 +100,9 @@ function L.build(groups, win_width, cfg)
 
         for _, sp in ipairs(spans) do
           hls[#hls + 1] = { lnum - 1, sp.s, sp.e, nil, field = sp.field, state = sp.state }
+        end
+        if is_marked then
+          hls[#hls + 1] = { lnum - 1, 0, #MARK_GLYPH, 'OrgSA_Marked', field = 'mark', state = it.todo_state }
         end
 
         if not cfg.classic.inline_dates and meta_str ~= '' then
