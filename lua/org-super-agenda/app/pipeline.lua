@@ -56,7 +56,7 @@ function Pipeline.run(source, cfg, state)
   local layout = (state.view_mode == 'compact') and layout_compact or layout_classic
 
   return function(win_width)
-    return layout.build(groups, win_width, cfg)
+    return layout.build(groups, win_width, cfg, state.marked)
   end
 end
 

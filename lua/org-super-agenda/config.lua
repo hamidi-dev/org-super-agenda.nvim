@@ -30,6 +30,10 @@ M.defaults = {
     toggle_duplicates = 'D',
     cycle_view        = 'ov',
     set_state         = 's',
+    bulk_mark         = 'm',
+    bulk_unmark_all   = 'M',
+    bulk_reselect     = 'gv',
+    bulk_action       = 'B',
   },
 
   todo_states         = {

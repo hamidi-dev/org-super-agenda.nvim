@@ -191,6 +191,28 @@ has:todo tag:work
 <
 
 ===============================================================================
+BULK ACTIONS                                               *org-super-agenda-bulk*
+
+Mark multiple items and apply an operation to all of them at once.
+
+Keymaps ~
+m             Toggle mark on current item (● indicator appears)
+M             Clear all marks
+gv            Reselect last marks (restores marks after clear/bulk action)
+B             Open bulk action menu for marked items
+
+Bulk action menu (after pressing B) ~
+s             Set TODO state on all marked items
+r             Reschedule all marked items (datepicker once, applied to all)
+d             Set deadline on all marked items (datepicker once, applied to all)
+
+All bulk operations push individual undo entries onto the undo stack.
+Use `u` to undo them one at a time.
+
+Keymaps are configurable via `keymaps.bulk_mark`, `keymaps.bulk_unmark_all`,
+`keymaps.bulk_reselect`, and `keymaps.bulk_action`.
+
+===============================================================================
 REFILE                                                       *org-super-agenda-refile*
 
 Press `R` on an item to start refiling via Telescope + org-telescope.

@@ -62,6 +62,13 @@ function U.show_help()
     fmt(km.refile, 'Refile headline [<C-Space> toggles mode]'),
     fmt('q / <Esc>', 'Close agenda'),
     '',
+    'Bulk Actions:',
+    fmt(km.bulk_mark, 'Mark / unmark item'),
+    fmt(km.bulk_unmark_all, 'Clear all marks'),
+    fmt(km.bulk_reselect, 'Reselect last marks'),
+    fmt(km.bulk_action, 'Run bulk action on marked items'),
+    '          (s=state  r=reschedule  d=deadline)',
+    '',
     'g? / q / <Esc> close this help.',
   })
 
@@ -87,4 +94,3 @@ function U.show_help()
 end
 
 return U
-

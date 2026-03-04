@@ -3,6 +3,9 @@ local L = {}
 
 local function truncate(str, len) if not len or #str <= len then return str end return str:sub(1, len) end
 
+local MARK_GLYPH = '● '
+local function item_key(it) return string.format('%s:%s', it.file or '', it._src_line or 0) end
+
 local function build_labels(it)
   local labels = {}
   if it.deadline then
@@ -25,7 +28,7 @@ local function build_labels(it)
   return table.concat(parts, '  ')
 end
 
-function L.build(groups, win_width, cfg)
+function L.build(groups, win_width, cfg, marked)
   local rows, hls, line_map = {}, {}, {}
   local fname_w   = cfg.compact and cfg.compact.filename_min_width or 8
   local label_w   = cfg.compact and cfg.compact.label_min_width or 12
@@ -55,7 +58,9 @@ function L.build(groups, win_width, cfg)
         local head  = truncate(it.headline or '', cfg.heading_max_length)
         if it.has_more then head = head .. ' …' end
 
-        local text, spans = '', {}
+        local is_marked = marked and marked[item_key(it)]
+        local mark_pfx = is_marked and MARK_GLYPH or '  '
+        local text, spans = mark_pfx, {}
         local s_fn  = #text; text = text .. string.format('%-' .. fname_w .. 's', name); spans[#spans+1] = {field='filename', s=s_fn, e=#text, state=it.todo_state}
         local s_lab = #text; text = text .. label; spans[#spans+1] = {field='date', s=s_lab, e=#text, state=it.todo_state}
         text = text .. ' '
@@ -74,6 +79,9 @@ function L.build(groups, win_width, cfg)
         local lnum = emit(text); line_map[lnum] = it
         for _, sp in ipairs(spans) do
           hls[#hls + 1] = { lnum - 1, sp.s, sp.e, nil, field=sp.field, state=it.todo_state }
+        end
+        if is_marked then
+          hls[#hls + 1] = { lnum - 1, 0, #MARK_GLYPH, 'OrgSA_Marked', field = 'mark', state = it.todo_state }
         end
       end
     end

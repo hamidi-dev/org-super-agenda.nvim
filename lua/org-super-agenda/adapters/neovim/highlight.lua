@@ -5,10 +5,8 @@ local H = { _done = false, _state = {} }
 function H.ensure()
   if H._done then return end
   vim.cmd('highlight default OrgSA_Group gui=bold')
-
-  -- Default group for items with no TODO state (events)
-  -- subtle grey-ish, bold. If user theme lacks gui colors, it still bolds.
   pcall(vim.cmd, 'highlight default OrgSA_NONE guifg=#A0A0A0 gui=bold')
+  pcall(vim.cmd, 'highlight default OrgSA_Marked guifg=#FFB86C gui=bold')
 
   for _, st in ipairs(get_cfg().todo_states or {}) do
     local hl_group = st.hl_group or (type(st.highlight) == 'string' and st.highlight) or ('OrgSA_' .. st.name)

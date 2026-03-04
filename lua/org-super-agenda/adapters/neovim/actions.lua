@@ -3,11 +3,12 @@ local utils     = require('org-super-agenda.adapters.neovim.utils')
 local config    = require('org-super-agenda.config')
 local Services  = require('org-super-agenda.app.services')
 local Store     = require('org-super-agenda.app.store')
-
 local A = {}
 local function get_cfg() return config.get() end
+
 local function key_for_hl(hl)
-  return string.format('%s:%s', hl.file.filename or '', hl.position and hl.position.start_line or 0)
+  local fname = (hl.file and hl.file.filename) or hl.filename or ''
+  return string.format('%s:%s', fname, hl.position and hl.position.start_line or 0)
 end
 
 -- === helpers: swap detection, buffer status, snapshots, safe writes ===
@@ -29,8 +30,9 @@ end
 
 -- Snapshot/restore utilities
 local function snapshot_heading_from_buf(hl)
-  local bufnr = vim.fn.bufnr(hl.file.filename)
-  if bufnr == -1 then bufnr = vim.fn.bufadd(hl.file.filename) end
+  local fname = (hl.file and hl.file.filename) or hl.filename
+  local bufnr = vim.fn.bufnr(fname)
+  if bufnr == -1 then bufnr = vim.fn.bufadd(fname) end
   if not vim.api.nvim_buf_is_loaded(bufnr) then vim.fn.bufload(bufnr) end
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   local start = hl.position.start_line
@@ -94,6 +96,55 @@ local function make_restore_from_snapshot(snap)
   end
 end
 
+local function push_bulk_undo(restores)
+  if #restores == 0 then return end
+  Store.push_undo(function()
+    for i = #restores, 1, -1 do
+      pcall(restores[i])
+    end
+  end)
+end
+
+local function upsert_planning_line(lines, headline_lnum, keyword, value)
+  local s, e = heading_range_in_file(lines, headline_lnum)
+  if not s then return false end
+
+  local new_stamp = keyword .. ': ' .. value
+
+  -- 1) keyword already on its own line → replace whole line
+  local key_pat = '^' .. keyword .. ':'
+  for i = s + 1, e do
+    if lines[i] and lines[i]:match(key_pat) then
+      lines[i] = new_stamp
+      return true
+    end
+  end
+
+  -- 2) keyword inline on a combined planning line (e.g. "SCHEDULED: <…> DEADLINE: <…>")
+  local inline_pat = keyword .. ':%s*<[^>]*>'
+  for i = s + 1, e do
+    local l = lines[i]
+    if l and l:match(inline_pat) then
+      lines[i] = l:gsub(keyword .. ':%s*<[^>]*>', new_stamp)
+      return true
+    end
+  end
+
+  -- 3) keyword not present yet → append to existing planning line or create one
+  --    orgmode.nvim only recognises planning when all keywords are on ONE line
+  for i = s + 1, e do
+    local l = lines[i] or ''
+    if l:match('^%*+') then break end
+    if l:match('SCHEDULED:') or l:match('DEADLINE:') or l:match('CLOSED:') then
+      lines[i] = l .. ' ' .. new_stamp
+      return true
+    end
+  end
+  -- no planning line at all → insert one right after the headline
+  table.insert(lines, s + 1, new_stamp)
+  return true
+end
+
 local function compute_cycled_line(line, next_state)
   -- Accept either "* TODO foo" or "* foo"
   local stars, cur_state, rest = line:match('^(%*+)%s+([A-Z]+)%s+(.*)$')
@@ -109,7 +160,7 @@ local function compute_cycled_line(line, next_state)
 end
 
 local function safe_set_heading_state(hl, next_state)
-  local path = hl.file.filename
+  local path = (hl.file and hl.file.filename) or hl.filename
   local lnum = (hl.position and hl.position.start_line or 1)
   if lnum < 1 then return false, "Invalid headline position" end
 
@@ -273,6 +324,233 @@ local function show_state_menu(line_map, shortcuts)
   end
   if next_state == nil then return end
   set_state_for_headline(line_map, next_state)
+end
+
+-- === bulk actions ===
+local function item_key_from_it(it)
+  return string.format('%s:%s', it.file or '', it._src_line or 0)
+end
+
+-- Remove a planning keyword from a line (inline or standalone)
+local function remove_planning_keyword(line, keyword)
+  -- inline: "SCHEDULED: <…> DEADLINE: <…>"  →  strip just the keyword+stamp
+  local stripped = line:gsub('%s*' .. keyword .. ':%s*<[^>]*>', '')
+  -- if the whole line is now empty/whitespace, signal full removal
+  if stripped:match('^%s*$') then return nil end
+  return stripped
+end
+
+local function hl_filename(hl)
+  return (hl.file and hl.file.filename) or hl.filename
+end
+
+local function hl_start_line(hl)
+  return hl.position and hl.position.start_line
+end
+
+local function find_stamp_near(path, start_line, keyword)
+  local lines = vim.fn.readfile(path)
+  for i = start_line, math.min(start_line + 5, #lines) do
+    local m = (lines[i] or ''):match(keyword .. ':%s*(<[^>]*>)')
+    if m then return m end
+  end
+  return nil
+end
+
+-- Apply a date bulk-op: open datepicker on first_hl, then mirror result to all targets.
+-- Handles both "set new date" and "remove date" (r in datepicker).
+local function bulk_apply_date(targets, cur, first_hl, snap_first, keyword, open_picker)
+  if not first_hl then return end
+
+  local fname   = hl_filename(first_hl)
+  local start_l = hl_start_line(first_hl)
+  if not (fname and start_l) then
+    vim.notify('bulk_apply_date: cannot resolve headline path/line', vim.log.levels.WARN); return
+  end
+
+  -- read planning stamp BEFORE the picker runs (to detect removal afterwards)
+  local before_stamp = find_stamp_near(fname, start_l, keyword)
+
+  local ok_p, p = pcall(open_picker, first_hl)
+  if not ok_p then
+    vim.notify('Could not open datepicker: ' .. tostring(p), vim.log.levels.WARN); return
+  end
+
+  local function after_first()
+    local after_stamp = find_stamp_near(fname, start_l, keyword)
+    local removed = (before_stamp ~= nil and after_stamp == nil)
+    local restores = { make_restore_from_snapshot(snap_first) }
+
+    for i = 2, #targets do
+      local it = targets[i]
+      local path2, lnum2 = it.file, it._src_line
+      if path2 and lnum2 then
+        local snap2 = snapshot_heading_from_disk(path2, lnum2)
+        restores[#restores + 1] = make_restore_from_snapshot(snap2)
+        local flines = vim.fn.readfile(path2)
+
+        if removed then
+          -- strip the keyword from every line it appears on
+          for li = lnum2, math.min(lnum2 + 5, #flines) do
+            local l = flines[li] or ''
+            if l:match(keyword .. ':') then
+              local new_l = remove_planning_keyword(l, keyword)
+              if new_l == nil then
+                table.remove(flines, li)
+              else
+                flines[li] = new_l
+              end
+              break
+            end
+          end
+        else
+          -- set the new stamp (after_stamp may be nil if user picked nothing — skip)
+          if after_stamp then
+            upsert_planning_line(flines, lnum2, keyword, after_stamp)
+          end
+        end
+
+        vim.fn.writefile(flines, path2)
+        local bufnr2 = vim.fn.bufnr(path2)
+        if bufnr2 ~= -1 and vim.api.nvim_buf_is_loaded(bufnr2) then
+          vim.api.nvim_buf_call(bufnr2, function() vim.cmd('silent noautocmd edit') end)
+        end
+      end
+    end
+
+    push_bulk_undo(restores)
+    Store.mark_clear()
+    Services.agenda.refresh(cur)
+  end
+
+  if p and type(p.next) == 'function' then p:next(after_first) else after_first() end
+end
+
+local function bulk_action_menu(line_map)
+  local marked = Store.get_marked()
+  if #marked == 0 then
+    vim.notify('No items marked. Use `m` to mark items first.', vim.log.levels.WARN)
+    return
+  end
+
+  -- collect item objects for marked keys
+  local items_by_key = {}
+  for _, it in pairs(line_map) do
+    if it and it.file then
+      items_by_key[item_key_from_it(it)] = it
+    end
+  end
+
+  local targets = {}
+  for _, k in ipairs(marked) do
+    if items_by_key[k] then targets[#targets+1] = items_by_key[k] end
+  end
+
+  if #targets == 0 then
+    vim.notify('Marked items not found in current view.', vim.log.levels.WARN)
+    return
+  end
+
+  -- resolve first headline + snapshot (needed for r/d datepicker actions)
+  local first_hl, snap_first
+  do
+    local ok_api, api_root = pcall(require, 'orgmode.api')
+    if ok_api then
+      local org_api = api_root.load and api_root or api_root.org
+      for _, it in ipairs(targets) do
+        local file = org_api.load(it.file); if vim.islist(file) then file = file[1] end
+        if file and file.get_headline_on_line then
+          local hl = file:get_headline_on_line(it._src_line)
+          if hl then
+            first_hl = hl
+            local fname_hl = hl_filename(hl)
+            local st = buf_status_for(fname_hl)
+            if st.loaded and st.modified then
+              vim.notify('File is open and modified; save first.', vim.log.levels.WARN); return
+            end
+            snap_first = st.loaded
+                and snapshot_heading_from_buf(hl)
+                or snapshot_heading_from_disk(fname_hl, hl_start_line(hl))
+            break
+          end
+        end
+      end
+    end
+  end
+
+  local count = #targets
+  local chunks = {
+    { 'Bulk (' .. count .. '): ', 'Normal' },
+    { 's', 'Comment' }, { '=state  ', 'Normal' },
+    { 'r', 'Comment' }, { '=reschedule  ', 'Normal' },
+    { 'd', 'Comment' }, { '=deadline', 'Normal' },
+  }
+  vim.api.nvim_echo(chunks, false, {})
+  local ok, c = pcall(vim.fn.getcharstr)
+  vim.api.nvim_echo({}, false, {})
+  if not ok then return end
+
+  local cur = vim.api.nvim_win_get_cursor(0)
+
+  if c == 's' then
+    -- bulk TODO state
+    local seq = {}
+    for _, s in ipairs(get_cfg().todo_states or {}) do seq[#seq+1] = s.name end
+    if #seq == 0 then return end
+    local shortcuts, _ = build_state_shortcuts(get_cfg().todo_states or {})
+    local sch = { { '0', 'Comment' }, { '=clear  ', 'Normal' } }
+    for _, s in ipairs(shortcuts) do
+      sch[#sch+1] = { s.key, 'Comment' }
+      sch[#sch+1] = { '=' .. s.name .. '  ', 'Normal' }
+    end
+    vim.api.nvim_echo(sch, false, {})
+    local ok2, c2 = pcall(vim.fn.getcharstr)
+    vim.api.nvim_echo({}, false, {})
+    if not ok2 then return end
+
+    local next_state
+    if c2 == '0' then next_state = ''
+    else
+      for _, s in ipairs(shortcuts) do
+        if s.key == c2 then next_state = s.name; break end
+      end
+    end
+    if next_state == nil then return end
+
+    local restores = {}
+    for _, it in ipairs(targets) do
+      local hl_ok, api_root = pcall(require, 'orgmode.api'); if not hl_ok then break end
+      local org_api = api_root.load and api_root or api_root.org
+      local file = org_api.load(it.file); if vim.islist(file) then file = file[1] end
+      if file and file.get_headline_on_line then
+        local hl = file:get_headline_on_line(it._src_line)
+        if hl then
+          local hl_fname = hl_filename(hl)
+          local st = buf_status_for(hl_fname)
+          local snap = st.loaded and snapshot_heading_from_buf(hl)
+                       or snapshot_heading_from_disk(hl_fname, hl_start_line(hl))
+          restores[#restores + 1] = make_restore_from_snapshot(snap)
+          local ok3, err = safe_set_heading_state(hl, next_state)
+          if not ok3 then vim.notify(err, vim.log.levels.WARN) end
+          local key = key_for_hl(hl)
+          if next_state == 'DONE' then Store.sticky_add(key) else Store.sticky_remove(key) end
+        end
+      end
+    end
+    push_bulk_undo(restores)
+    Store.mark_clear()
+    Services.agenda.refresh(cur)
+
+  elseif c == 'r' then
+    -- bulk reschedule: prompt once via first item, apply result to all
+    bulk_apply_date(targets, cur, first_hl, snap_first, 'SCHEDULED',
+      function(hl) return hl:set_scheduled() end)
+
+  elseif c == 'd' then
+    -- bulk deadline: same pattern
+    bulk_apply_date(targets, cur, first_hl, snap_first, 'DEADLINE',
+      function(hl) return hl:set_deadline() end)
+  end
 end
 
 -- === keymaps ===
@@ -552,9 +830,47 @@ function A.set_keymaps(buf, win, line_map, reopen)
     Services.agenda.refresh(vim.api.nvim_win_get_cursor(0))
   end, { buffer = buf, silent = true })
 
+  -- bulk: mark toggle
+  if cfg.keymaps.bulk_mark and cfg.keymaps.bulk_mark ~= '' then
+    vim.keymap.set('n', cfg.keymaps.bulk_mark, function()
+      local cur = vim.api.nvim_win_get_cursor(0)
+      local it  = line_map[cur[1]]
+      if not (it and it.file) then return end
+      Store.mark_toggle(item_key_from_it(it))
+      Services.agenda.refresh(cur)
+    end, { buffer = buf, silent = true, nowait = true })
+  end
+
+  -- bulk: unmark all
+  if cfg.keymaps.bulk_unmark_all and cfg.keymaps.bulk_unmark_all ~= '' then
+    vim.keymap.set('n', cfg.keymaps.bulk_unmark_all, function()
+      local cur = vim.api.nvim_win_get_cursor(0)
+      Store.mark_clear()
+      Services.agenda.refresh(cur)
+    end, { buffer = buf, silent = true, nowait = true })
+  end
+
+  -- bulk: reselect last marks (like vim gv for visual)
+  if cfg.keymaps.bulk_reselect and cfg.keymaps.bulk_reselect ~= '' then
+    vim.keymap.set('n', cfg.keymaps.bulk_reselect, function()
+      local cur = vim.api.nvim_win_get_cursor(0)
+      if Store.mark_restore_last() then
+        Services.agenda.refresh(cur)
+      else
+        vim.notify('No previous marks to restore.', vim.log.levels.INFO)
+      end
+    end, { buffer = buf, silent = true, nowait = true })
+  end
+
+  -- bulk: action menu
+  if cfg.keymaps.bulk_action and cfg.keymaps.bulk_action ~= '' then
+    vim.keymap.set('n', cfg.keymaps.bulk_action, function()
+      bulk_action_menu(line_map)
+    end, { buffer = buf, silent = true })
+  end
+
   -- help
   vim.keymap.set('n', 'g?', utils.show_help, { buffer = buf, silent = true })
 end
 
 return A
-
