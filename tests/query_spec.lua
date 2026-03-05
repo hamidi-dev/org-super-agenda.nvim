@@ -162,6 +162,28 @@ describe('query.parse', function()
     assert.is_false(q.matches(item2))
   end)
 
+  it('excludes done items with -is:done', function()
+    local q = Query.parse('-is:done')
+    local item1 = Item.new{ headline = 'Task', todo_state = 'TODO' }
+    local item2 = Item.new{ headline = 'Task', todo_state = 'PROGRESS' }
+    local item3 = Item.new{ headline = 'Task', todo_state = 'DONE' }
+    assert.is_true(q.matches(item1))
+    assert.is_true(q.matches(item2))
+    assert.is_false(q.matches(item3))
+  end)
+
+  it('excludes overdue items with -is:overdue', function()
+    local q = Query.parse('-is:overdue')
+    local last_month = os.date('*t')
+    last_month.month = last_month.month - 1
+    local next_month = os.date('*t')
+    next_month.month = next_month.month + 1
+    local item1 = Item.new{ headline = 'Overdue', deadline = Date.new(last_month.year, last_month.month, last_month.day) }
+    local item2 = Item.new{ headline = 'Future', deadline = Date.new(next_month.year, next_month.month, next_month.day) }
+    assert.is_false(q.matches(item1))
+    assert.is_true(q.matches(item2))
+  end)
+
   it('matches items with TODO state using has:todo', function()
     local q = Query.parse('has:todo')
     local item1 = Item.new{ headline = 'Task', todo_state = 'TODO' }

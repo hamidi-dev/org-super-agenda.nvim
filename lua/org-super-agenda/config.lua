@@ -40,6 +40,7 @@ M.defaults = {
     bulk_unmark_all   = 'M',
     bulk_reselect     = 'gv',
     bulk_action       = 'B',
+    open_view         = 'V',
   },
 
   todo_states         = {
@@ -133,6 +134,8 @@ M.defaults = {
   },
 
   debug               = false,
+
+  custom_views        = {},
 }
 
 local cfg = vim.deepcopy(M.defaults)

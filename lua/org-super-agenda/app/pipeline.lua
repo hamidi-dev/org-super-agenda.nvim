@@ -2,6 +2,7 @@
 local filter         = require('org-super-agenda.core.filter')
 local group          = require('org-super-agenda.core.group')
 local sort_core      = require('org-super-agenda.core.sort')
+local views_core     = require('org-super-agenda.core.views')
 local layout_classic = require('org-super-agenda.core.layout.classic')
 local layout_compact = require('org-super-agenda.core.layout.compact')
 
@@ -24,18 +25,33 @@ function Pipeline.run(source, cfg, state)
   -- filters
   items = filter.apply(items, state.opts, cfg)
 
+  -- custom view pre-filter (query-based)
+  local active_view = state.active_view
+  if active_view then
+    items = views_core.apply_filter(items, active_view)
+  end
+
+  -- determine groups: custom view groups override config groups
+  local effective_groups = cfg.groups
+  if active_view and active_view.groups then
+    effective_groups = active_view.groups
+  end
+
   -- grouping (excludes DONE from "Other" by design)
   local groups = group.group_items(items, {
-    groups        = cfg.groups,
+    groups        = effective_groups,
     allow_duplicates = state.allow_duplicates,
     hide_empty    = cfg.hide_empty_groups,
     show_other    = cfg.show_other_group,
     other_name    = cfg.other_group_name,
   })
 
-  -- per-group sorting (group.sort overrides global cfg.group_sort)
+  -- per-group sorting (group.sort > view.sort > global cfg.group_sort)
+  local view_sort = active_view and active_view.sort or nil
   for _, g in ipairs(groups) do
-    local spec = (g.sort and type(g.sort) == 'table') and g.sort or nil
+    local spec = (g.sort and type(g.sort) == 'table') and g.sort
+              or (view_sort and type(view_sort) == 'table') and view_sort
+              or nil
     sort_core.sort_items(g.items, spec, cfg)
     g.collapsed = state.collapsed_groups and state.collapsed_groups[g.name] == true
   end
