@@ -1047,6 +1047,13 @@ function A.set_keymaps(buf, win, line_map, reopen)
     end, { buffer = buf, silent = true })
   end
 
+  -- open view picker
+  if cfg.keymaps.open_view and cfg.keymaps.open_view ~= '' then
+    vim.keymap.set('n', cfg.keymaps.open_view, function()
+      require('org-super-agenda').show_view_picker()
+    end, { buffer = buf, silent = true })
+  end
+
   -- help
   vim.keymap.set('n', 'g?', utils.show_help, { buffer = buf, silent = true })
 end

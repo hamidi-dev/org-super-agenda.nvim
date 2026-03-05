@@ -67,6 +67,7 @@ function U.show_help()
     fmt(km.fold_all, 'Fold all groups'),
     fmt(km.unfold_all, 'Unfold all groups'),
     fmt(km.refile, 'Refile headline [<C-Space> toggles mode]'),
+    fmt(km.open_view, 'Open view picker'),
     fmt('q / <Esc>', 'Close agenda'),
     '',
     'Bulk Actions:',

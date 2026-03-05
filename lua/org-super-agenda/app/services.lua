@@ -44,7 +44,8 @@ function Services.agenda.open(opts) store.set_cursor(nil); render(nil, opts or {
 function Services.agenda.refresh(cursor, opts) render(cursor, opts, true) end
 function Services.agenda.on_close()
   if not cfg().persist_hidden then store.reset_hidden() end
-  store.sticky_reset() -- drop session-only DONE visibility on close
+  store.sticky_reset()
+  store.clear_active_view()
 end
 
 function Services.agenda.toggle_duplicates()
@@ -98,6 +99,32 @@ function Services.agenda.unfold_all()
   if view.is_open() then
     Services.agenda.refresh(vim.api.nvim_win_get_cursor(0))
   end
+end
+
+function Services.agenda.open_view(view_key, opts)
+  local views_core = require('org-super-agenda.core.views')
+  local c = cfg()
+  local def = c.custom_views and c.custom_views[view_key]
+  if not def then
+    vim.notify('Unknown view: ' .. tostring(view_key), vim.log.levels.WARN)
+    return
+  end
+  local resolved = views_core.resolve(def)
+  store.set_active_view(resolved, view_key)
+  store.set_cursor(nil)
+  render(nil, opts or {}, view.is_open())
+end
+
+function Services.agenda.clear_view()
+  store.clear_active_view()
+  if view.is_open() then
+    Services.agenda.refresh(vim.api.nvim_win_get_cursor(0))
+  end
+end
+
+function Services.agenda.list_views()
+  local views_core = require('org-super-agenda.core.views')
+  return views_core.list(cfg().custom_views)
 end
 
 function Services.refile_start(src_file, s, e, lvl)

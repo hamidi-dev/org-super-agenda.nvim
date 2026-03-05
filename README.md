@@ -30,6 +30,7 @@ A Neovim plugin inspired by [org-super-agenda](https://github.com/alphapapa/org-
 * **Undo last change** (`u`) within the agenda
 * **Toggle duplicates** across groups (`D`)
 * **Group folding**: `<Tab>` on headers, fold all (`zM`), unfold all (`zR`)
+* **Custom views** with pre-configured filters, groups, sort, and global keymaps (`V` picker)
 * **Switch view** between `classic` and `compact` (`ov`)
 * **Right‑aligned tags**, customizable header format, and filename display
 * **Safety**: refuses edits when a swapfile is present or buffer is modified elsewhere
@@ -41,6 +42,8 @@ A Neovim plugin inspired by [org-super-agenda](https://github.com/alphapapa/org-
 
 * `:OrgSuperAgenda` — open the agenda (float)
 * `:OrgSuperAgenda fullscreen` **or** `:OrgSuperAgenda!` — open fullscreen
+* `:OrgSuperAgenda view <name>` — open a specific custom view
+* `:OrgSuperAgenda views` — open the view picker
 
 Convenient mappings:
 
@@ -106,6 +109,7 @@ return {
         bulk_unmark_all   = 'M',  -- clear all marks
         bulk_reselect     = 'gv', -- reselect last marks
         bulk_action       = 'B',  -- run action on all marked items
+        open_view         = 'V',  -- open custom view picker
       },
 
       -- Window/appearance
@@ -166,6 +170,15 @@ return {
       },
 
       debug = false,
+
+      -- Custom views: reusable named views with pre-configured filters
+      custom_views = {
+        -- work_week = {
+        --   name = "Work This Week",
+        --   keymap = "<leader>ow",
+        --   filter = "tag:work sched>=0 sched<7 -is:done",
+        -- },
+      },
     })
   end,
 }
@@ -295,6 +308,71 @@ After pressing `B`, choose an action:
 2. `B` → `r` → pick new date → all rescheduled at once
 
 All bulk operations are undoable individually via `u`.
+
+---
+
+## 🎯 Custom Views
+
+Define reusable, named agenda views with pre-configured filters, groups, and sort. Switch between them instantly via keymaps, commands, or an in-agenda picker.
+
+### Configuration
+
+```lua
+custom_views = {
+  work_week = {
+    name = "Work This Week",
+    keymap = "<leader>ow",                        -- global keymap to open this view
+    filter = "tag:work sched>=0 sched<7 -is:done", -- query string (same syntax as oq)
+    groups = { ... },                              -- optional: override default groups
+    sort = { by = 'deadline', order = 'asc' },     -- optional: view-level sort fallback
+    title = "🏢 Work Week",                        -- optional: custom window title
+    view_mode = "compact",                         -- optional: override layout
+  },
+  personal = {
+    name = "Personal",
+    keymap = "<leader>op",
+    filter = "tag:personal -is:done",
+  },
+  overdue = {
+    name = "Overdue",
+    filter = "is:overdue -is:done",
+  },
+}
+```
+
+All fields except the key itself are optional. A view with just a `filter` is perfectly valid.
+
+### Accessing views
+
+- **Global keymaps**: defined via `keymap` field, available everywhere in normal mode
+- **Commands**:
+  - `:OrgSuperAgenda view work_week` — open a specific view directly
+  - `:OrgSuperAgenda views` — open the view picker
+- **In-agenda picker**: press `V` inside the agenda to open the picker
+  - Numbered selection (press `1`, `2`, etc.)
+  - Shows active view indicator (`◀`)
+  - When a view is active, first option is "Default Agenda" to go back
+
+### Visual indicators
+
+- **Window title** updates to reflect the active view name
+- **Footer badge** shows the active view name and its filter string
+
+### Sort precedence
+
+When a custom view is active:
+
+1. Per-group `sort` (highest priority)
+2. View-level `sort` (from custom view config)
+3. Global `group_sort` (lowest priority fallback)
+
+### Tab completion
+
+`:OrgSuperAgenda` supports tab completion for all view names:
+
+```
+:OrgSuperAgenda view <Tab>
+```
 
 ---
 

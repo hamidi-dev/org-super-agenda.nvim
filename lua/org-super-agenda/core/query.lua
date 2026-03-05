@@ -19,7 +19,7 @@ function Q.parse(q)
   local P = {
     inc = {}, exc = {}, tags_inc = {}, tags_exc = {}, file_inc = {}, todo = {},
     prio = { op=nil, val=nil },
-    due=nil, sched=nil, before=nil, after=nil, is_overdue=false, is_done=false, has_todo=nil,
+    due=nil, sched=nil, before=nil, after=nil, is_overdue=nil, is_done=nil, has_todo=nil,
   }
   local function splitbar(s) local r={}; for p in s:gmatch('[^|]+') do r[#r+1]=p end; return r end
 
@@ -45,9 +45,9 @@ function Q.parse(q)
     elseif t:match('^after:') then
       P.after = Date.parse(t:sub(7))
     elseif t == 'is:overdue' then
-      P.is_overdue = true
+      P.is_overdue = not neg
     elseif t == 'is:done' then
-      P.is_done = true
+      P.is_done = not neg
     elseif t == 'has:todo' then
       P.has_todo = not neg
     else
@@ -100,11 +100,16 @@ function Q.parse(q)
     if P.before and not (it.deadline and it.deadline:to_time() < P.before:to_time()) then return false end
     if P.after  and not (it.scheduled and it.scheduled:to_time() > P.after:to_time()) then return false end
     -- flags
-    if P.is_overdue then
+    if P.is_overdue ~= nil then
       local over = (it.deadline and it.deadline:is_past()) or (it.scheduled and it.scheduled:is_past())
-      if not over then return false end
+      if P.is_overdue and not over then return false end
+      if not P.is_overdue and over then return false end
     end
-    if P.is_done and (it.todo_state ~= 'DONE') then return false end
+    if P.is_done ~= nil then
+      local done = (it.todo_state == 'DONE')
+      if P.is_done and not done then return false end
+      if not P.is_done and done then return false end
+    end
     if P.has_todo ~= nil then
       local has = it.todo_state ~= nil and it.todo_state ~= ''
       if P.has_todo and not has then return false end

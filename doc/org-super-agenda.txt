@@ -39,6 +39,7 @@ a group header to toggle collapse/expand.
         D         Toggle allowing duplicates across groups
         zM / zR   Fold all / unfold all groups
         ov        Switch view mode (classic ↔ compact)
+        V         Open custom view picker
         x / gX    Hide current item / reset hidden list
         R         Refile via Telescope (see |org-super-agenda-refile|)
 ```
@@ -311,6 +312,71 @@ When you press `s` and wait (based on your `timeoutlen`), a colored menu
 appears showing all available states in their configured colors.
 
 ===============================================================================
+CUSTOM VIEWS                                             *org-super-agenda-views*
+
+Define reusable, named agenda views with pre-configured filters, groups, sort,
+and keymaps. Switch between them via commands, global keymaps, or the in-agenda
+picker.
+
+Configuration ~
+
+>
+
+```
+custom_views = {
+  work_week = {
+    name = "Work This Week",
+    keymap = "<leader>ow",
+    filter = "tag:work sched>=0 sched<7 -is:done",
+    groups = { ... },
+    sort = { by = 'deadline', order = 'asc' },
+    title = "Work Week",
+    view_mode = "compact",
+  },
+  personal = {
+    name = "Personal",
+    keymap = "<leader>op",
+    filter = "tag:personal -is:done",
+  },
+}
+```
+
+<
+
+View options ~
+name            Display name for the view (defaults to key name)
+keymap          Global keymap to open this view directly
+filter          Query string (same syntax as |org-super-agenda-query|)
+groups          Override default group structure for this view
+sort            View-level sort fallback (between per-group and global)
+title           Custom window title override
+view_mode       Layout override ('classic' or 'compact')
+
+All fields are optional. A view with just a `filter` is valid.
+
+Accessing views ~
+- Global keymaps: defined via `keymap` field, works in normal mode
+- `:OrgSuperAgenda view <name>` opens a specific view
+- `:OrgSuperAgenda views` opens the view picker
+- Press `V` inside the agenda to open the picker
+
+View picker ~
+- Numbered selection (press 1, 2, etc. or use <CR>)
+- Shows active view with `◀` indicator
+- When a view is active, first option is "Default Agenda" to go back
+- Press `q` or `<Esc>` to close picker without switching
+
+Sort precedence ~
+When a custom view is active, sort is resolved in this order:
+1. Per-group `sort` (highest priority)
+2. View-level `sort` (from custom view config)
+3. Global `group_sort` (lowest priority fallback)
+
+Visual indicators ~
+- Window title updates to reflect the active view name
+- Footer shows a badge with the active view name and filter string
+
+===============================================================================
 DEFAULT OPTIONS                                                *org-super-agenda-options*
 
 The defaults (see |lua/org-super-agenda/config.lua|) are:
@@ -351,6 +417,7 @@ M.defaults = {
     unfold_all        = 'zR',
     toggle_duplicates = 'D',
     cycle_view        = 'ov',
+    open_view         = 'V',
   },
 
   todo_states         = {
@@ -445,6 +512,8 @@ M.defaults = {
   },
 
   debug               = false,
+
+  custom_views        = {},
 }
 
 ===============================================================================

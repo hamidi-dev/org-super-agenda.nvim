@@ -35,6 +35,16 @@ local function add_hl(buf, row, col_start, col_end, entry)
   vim.api.nvim_buf_add_highlight(buf, V._ns, group, row, col_start, col_end)
 end
 
+local function view_title()
+  local Store = require('org-super-agenda.app.store')
+  local av = Store.get_active_view()
+  if av then
+    local title = av.title or av.name
+    if title then return title end
+  end
+  return get_cfg().window.title
+end
+
 local function sizes(opts)
   local cfg = get_cfg()
   local ui  = vim.api.nvim_list_uis()[1]
@@ -54,16 +64,13 @@ local function sizes(opts)
     width = (fullscreen and ui.width or math.floor(ui.width * cfg.window.width)),
     height = (fullscreen and ui.height or math.floor(ui.height * cfg.window.height)),
     border = border,
-    title  = cfg.window.title,
+    title  = view_title(),
     title_pos = cfg.window.title_pos,
   }
 end
 
-local function draw_into(buf, win, producer, cursor, opts)
-  hi.ensure()
-  local sz  = sizes(opts)
-
-  local rows, hls, new_map = producer(sz.win_w)
+local function append_footer(rows, hls)
+  local Store = require('org-super-agenda.app.store')
 
   local clock = active_clock_status()
   if clock ~= '' then
@@ -71,9 +78,25 @@ local function draw_into(buf, win, producer, cursor, opts)
     hls[#hls + 1]   = { (#rows - 1), 0, -1, 'OrgSA_Clock', field='clock_status' }
   end
 
+  local av = Store.get_active_view()
+  if av then
+    local label = '📋  View: ' .. (av.name or '?')
+    if av.filter_raw then label = label .. '  (' .. av.filter_raw .. ')' end
+    rows[#rows + 1] = label
+    hls[#hls + 1]   = { (#rows - 1), 0, -1, 'OrgSA_Group', field='view_badge' }
+  end
+
   rows[#rows + 1] = ''
   rows[#rows + 1] = '🔍  g? for help'
   hls[#hls + 1]   = { (#rows - 1), 0, -1, 'Comment', field='help' }
+end
+
+local function draw_into(buf, win, producer, cursor, opts)
+  hi.ensure()
+  local sz  = sizes(opts)
+
+  local rows, hls, new_map = producer(sz.win_w)
+  append_footer(rows, hls)
 
   for k in pairs(V._line_map) do V._line_map[k] = nil end
   for k, v in pairs(new_map) do V._line_map[k] = v end
@@ -103,14 +126,7 @@ function V.render(producer, cursor, _mode, opts)
   local sz  = sizes(opts)
 
   local rows, hls, line_map = producer(sz.win_w)
-  local clock = active_clock_status()
-  if clock ~= '' then
-    rows[#rows + 1] = '⏱  ' .. clock
-    hls[#hls + 1]   = { (#rows - 1), 0, -1, 'OrgSA_Clock', field='clock_status' }
-  end
-  rows[#rows + 1] = ''
-  rows[#rows + 1] = '🔍  g? for help'
-  hls[#hls + 1]   = { (#rows - 1), 0, -1, 'Comment', field='help' }
+  append_footer(rows, hls)
 
   local buf = vim.api.nvim_create_buf(false, true)
   local pad = {}
@@ -146,8 +162,12 @@ function V.render(producer, cursor, _mode, opts)
 end
 
 function V.update(producer, cursor, _mode, opts)
-  if V.is_open() then draw_into(V._buf, V._win, producer, cursor, opts)
-  else V.render(producer, cursor, _mode, opts) end
+  if V.is_open() then
+    draw_into(V._buf, V._win, producer, cursor, opts)
+    pcall(vim.api.nvim_win_set_config, V._win, { title = view_title() })
+  else
+    V.render(producer, cursor, _mode, opts)
+  end
 end
 
 return V

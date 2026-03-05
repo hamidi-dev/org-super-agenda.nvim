@@ -12,6 +12,8 @@ local Store = {
     sticky_done = {},       -- items turned DONE during this session (keep visible)
     fullscreen = false,
     collapsed_groups = {},  -- group_name -> true when collapsed
+    active_view = nil,      -- resolved custom view or nil for default
+    active_view_key = nil,  -- key name of the active custom view
   }
 }
 
@@ -73,6 +75,19 @@ function Store.mark_restore_last()
   end
   return false
 end
+
+function Store.set_active_view(resolved, key)
+  Store.state.active_view = resolved
+  Store.state.active_view_key = key
+end
+
+function Store.clear_active_view()
+  Store.state.active_view = nil
+  Store.state.active_view_key = nil
+end
+
+function Store.get_active_view() return Store.state.active_view end
+function Store.get_active_view_key() return Store.state.active_view_key end
 
 function Store.push_undo(fn) table.insert(Store.state.undo_stack, fn) end
 function Store.pop_undo()
