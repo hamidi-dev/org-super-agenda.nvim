@@ -1,6 +1,6 @@
 local Views = require('org-super-agenda.core.views')
-local Item  = require('org-super-agenda.core.item')
-local Date  = require('org-super-agenda.core.date')
+local Item = require('org-super-agenda.core.item')
+local Date = require('org-super-agenda.core.date')
 local Store = require('org-super-agenda.app.store')
 local config = require('org-super-agenda.config')
 
@@ -26,7 +26,12 @@ describe('core.views', function()
 
     it('preserves custom groups', function()
       local groups = {
-        { name = 'Urgent', matcher = function() return true end },
+        {
+          name = 'Urgent',
+          matcher = function()
+            return true
+          end,
+        },
       }
       local v = Views.resolve({ name = 'Test', groups = groups })
       assert.equals(groups, v.groups)
@@ -60,7 +65,7 @@ describe('core.views', function()
 
     it('lists views sorted by name', function()
       local views = {
-        beta  = { name = 'Beta View', keymap = '<leader>ob', filter = 'tag:beta' },
+        beta = { name = 'Beta View', keymap = '<leader>ob', filter = 'tag:beta' },
         alpha = { name = 'Alpha View', filter = 'tag:alpha' },
       }
       local result = Views.list(views)
@@ -82,10 +87,9 @@ describe('core.views', function()
   describe('apply_filter', function()
     local today = os.date('*t')
     local items = {
-      Item.new{ headline = 'Work task', tags = { 'work' }, todo_state = 'TODO',
-        scheduled = Date.new(today.year, today.month, today.day) },
-      Item.new{ headline = 'Personal task', tags = { 'personal' }, todo_state = 'TODO' },
-      Item.new{ headline = 'Done work', tags = { 'work' }, todo_state = 'DONE' },
+      Item.new({ headline = 'Work task', tags = { 'work' }, todo_state = 'TODO', scheduled = Date.new(today.year, today.month, today.day) }),
+      Item.new({ headline = 'Personal task', tags = { 'personal' }, todo_state = 'TODO' }),
+      Item.new({ headline = 'Done work', tags = { 'work' }, todo_state = 'DONE' }),
     }
 
     it('returns all items when no filter', function()

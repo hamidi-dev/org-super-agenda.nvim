@@ -37,12 +37,12 @@ describe('group folding (layout)', function()
   }
 
   local function make_item(headline, line)
-    return Item.new{
+    return Item.new({
       headline = headline,
       todo_state = 'TODO',
       file = '/org/test.org',
       _src_line = line,
-    }
+    })
   end
 
   it('shows item count in classic group header', function()

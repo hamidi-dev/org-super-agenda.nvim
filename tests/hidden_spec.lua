@@ -8,8 +8,16 @@ describe('hidden items', function()
     services.setup({
       cfg = config,
       store = store,
-      source = { collect_items = function() return {} end },
-      view = { is_open = function() return false end },
+      source = {
+        collect_items = function()
+          return {}
+        end,
+      },
+      view = {
+        is_open = function()
+          return false
+        end,
+      },
       pipeline = pipeline,
     })
     store.reset_hidden()
