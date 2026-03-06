@@ -1,4 +1,4 @@
-local Item  = require('org-super-agenda.core.item')
+local Item = require('org-super-agenda.core.item')
 local layout_classic = require('org-super-agenda.core.layout.classic')
 local layout_compact = require('org-super-agenda.core.layout.compact')
 
@@ -17,7 +17,7 @@ describe('clock indicator rendering', function()
   end
 
   it('shows clock indicator in classic layout for active item', function()
-    local it = Item.new{ headline = 'Task', todo_state = 'TODO', file = '/org/work.org', _src_line = 3, clocked_in = true }
+    local it = Item.new({ headline = 'Task', todo_state = 'TODO', file = '/org/work.org', _src_line = 3, clocked_in = true })
     local rows, hls, lm = layout_classic.build(make_groups(it), 80, cfg, {})
     local item_line, item_lnum
     for ln, entry in pairs(lm) do
@@ -31,13 +31,15 @@ describe('clock indicator rendering', function()
 
     local has_clock_hl = false
     for _, h in ipairs(hls) do
-      if h[1] == item_lnum - 1 and h[4] == 'OrgSA_Clock' then has_clock_hl = true end
+      if h[1] == item_lnum - 1 and h[4] == 'OrgSA_Clock' then
+        has_clock_hl = true
+      end
     end
     assert.is_true(has_clock_hl)
   end)
 
   it('shows clock indicator in compact layout for active item', function()
-    local it = Item.new{ headline = 'Task', todo_state = 'TODO', file = '/org/work.org', _src_line = 3, clocked_in = true }
+    local it = Item.new({ headline = 'Task', todo_state = 'TODO', file = '/org/work.org', _src_line = 3, clocked_in = true })
     local rows, hls, lm = layout_compact.build(make_groups(it), 80, cfg, {})
     local item_line, item_lnum
     for ln, entry in pairs(lm) do
@@ -51,7 +53,9 @@ describe('clock indicator rendering', function()
 
     local has_clock_hl = false
     for _, h in ipairs(hls) do
-      if h[1] == item_lnum - 1 and h[4] == 'OrgSA_Clock' then has_clock_hl = true end
+      if h[1] == item_lnum - 1 and h[4] == 'OrgSA_Clock' then
+        has_clock_hl = true
+      end
     end
     assert.is_true(has_clock_hl)
   end)

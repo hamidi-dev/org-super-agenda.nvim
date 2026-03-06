@@ -7,6 +7,18 @@ on:
     branches: [main, develop]
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install stylua
+        uses: JohnnyMorganz/stylua-action@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          version: latest
+          args: --check lua/ tests/
+
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 5

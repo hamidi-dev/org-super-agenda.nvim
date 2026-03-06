@@ -13,7 +13,7 @@ describe('Date helpers', function()
   end)
 
   it('past vs. future', function()
-    local past  = Date.parse('2000-01-01')
+    local past = Date.parse('2000-01-01')
     local future = Date.parse('2999-12-31')
     assert.is_true(past:is_past())
     assert.is_false(future:is_past())
@@ -75,18 +75,21 @@ describe('Date helpers', function()
     end)
 
     it('formats time range when timestamp_end present', function()
-      local start_ts = os.time({ year=2026, month=1, day=30, hour=14, min=30 })
-      local end_ts = os.time({ year=2026, month=1, day=30, hour=15, min=30 })
+      local start_ts = os.time({ year = 2026, month = 1, day = 30, hour = 14, min = 30 })
+      local end_ts = os.time({ year = 2026, month = 1, day = 30, hour = 15, min = 30 })
       local d = Date.new(2026, 1, 30, true, 14, 30, false, end_ts)
       assert.equals('2026-01-30 14:30-15:30', tostring(d))
     end)
 
     it('Date.from_orgdate() captures time fields', function()
       local orgdate = {
-        year = 2026, month = 1, day = 30,
-        hour = 14, min = 30,
+        year = 2026,
+        month = 1,
+        day = 30,
+        hour = 14,
+        min = 30,
         active = true,
-        date_only = false
+        date_only = false,
       }
       local d = Date.from_orgdate(orgdate)
       assert.equals(14, d.hour)
@@ -97,13 +100,13 @@ describe('Date helpers', function()
 
     it('to_time() includes hour and minute', function()
       local d = Date.new(2026, 1, 30, true, 9, 30)
-      local expected = os.time({ year=2026, month=1, day=30, hour=9, min=30 })
+      local expected = os.time({ year = 2026, month = 1, day = 30, hour = 9, min = 30 })
       assert.equals(expected, d:to_time())
     end)
 
     it('to_time() defaults to midnight when no time', function()
       local d = Date.new(2026, 1, 30)
-      local expected = os.time({ year=2026, month=1, day=30, hour=0, min=0 })
+      local expected = os.time({ year = 2026, month = 1, day = 30, hour = 0, min = 0 })
       assert.equals(expected, d:to_time())
     end)
 
@@ -124,4 +127,3 @@ describe('Date helpers', function()
     end)
   end)
 end)
-

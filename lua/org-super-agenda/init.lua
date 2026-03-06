@@ -1,11 +1,11 @@
 -- org-super-agenda/init.lua (bootstrap & wiring)
-local cfgmod     = require('org-super-agenda.config')
-local Store      = require('org-super-agenda.app.store')
-local Pipeline   = require('org-super-agenda.app.pipeline')
-local Services   = require('org-super-agenda.app.services')
+local cfgmod = require('org-super-agenda.config')
+local Store = require('org-super-agenda.app.store')
+local Pipeline = require('org-super-agenda.app.pipeline')
+local Services = require('org-super-agenda.app.services')
 
 local SourcePort = require('org-super-agenda.adapters.neovim.source_orgmode')
-local ViewPort   = require('org-super-agenda.adapters.neovim.view_float')
+local ViewPort = require('org-super-agenda.adapters.neovim.view_float')
 
 local M = {}
 
@@ -35,7 +35,9 @@ function M.setup(user)
     elseif args:lower():match('^views?$') and not args:match('^view%s+') then
       -- :OrgSuperAgenda views -> picker
       Services.agenda.open({ fullscreen = fullscreen })
-      vim.schedule(function() M.show_view_picker() end)
+      vim.schedule(function()
+        M.show_view_picker()
+      end)
     elseif args:match('^view%s+') then
       local view_key = args:match('^view%s+(.+)$')
       if view_key then
@@ -45,18 +47,23 @@ function M.setup(user)
       Services.agenda.open({ fullscreen = fullscreen })
     end
   end, {
-    nargs = '?', bang = true,
+    nargs = '?',
+    bang = true,
     complete = function(_, line)
       local parts = vim.split(vim.trim(line), '%s+')
       if #parts == 2 and parts[2]:match('^view') then
         local views = Services.agenda.list_views()
         local keys = { 'views' }
-        for _, v in ipairs(views) do keys[#keys + 1] = 'view ' .. v.key end
+        for _, v in ipairs(views) do
+          keys[#keys + 1] = 'view ' .. v.key
+        end
         return keys
       end
       local base = { 'fullscreen', 'views' }
       local views = Services.agenda.list_views()
-      for _, v in ipairs(views) do base[#base + 1] = 'view ' .. v.key end
+      for _, v in ipairs(views) do
+        base[#base + 1] = 'view ' .. v.key
+      end
       return base
     end,
   })
@@ -72,20 +79,48 @@ function M.setup(user)
 end
 
 -- Expose a minimal API for internal adapters (used by actions)
-M.refresh           = function(cur, opts) Services.agenda.refresh(cur, opts) end
-M.on_close          = function() Services.agenda.on_close() end
-M.toggle_duplicates = function() Services.agenda.toggle_duplicates() end
-M.cycle_view        = function() Services.agenda.cycle_view() end
-M.hide_current      = function() Services.agenda.hide_current() end
-M.reset_hidden      = function() Services.agenda.reset_hidden() end
-M.toggle_group      = function(name, cur) Services.agenda.toggle_group(name, cur) end
-M.fold_all          = function() Services.agenda.fold_all() end
-M.unfold_all        = function() Services.agenda.unfold_all() end
-M.push_undo         = function(fn) Store.push_undo(fn) end
-M.pop_undo          = function() return Store.pop_undo() end
-M.open_view         = function(key, opts) Services.agenda.open_view(key, opts) end
-M.clear_view        = function() Services.agenda.clear_view() end
-M.list_views        = function() return Services.agenda.list_views() end
+M.refresh = function(cur, opts)
+  Services.agenda.refresh(cur, opts)
+end
+M.on_close = function()
+  Services.agenda.on_close()
+end
+M.toggle_duplicates = function()
+  Services.agenda.toggle_duplicates()
+end
+M.cycle_view = function()
+  Services.agenda.cycle_view()
+end
+M.hide_current = function()
+  Services.agenda.hide_current()
+end
+M.reset_hidden = function()
+  Services.agenda.reset_hidden()
+end
+M.toggle_group = function(name, cur)
+  Services.agenda.toggle_group(name, cur)
+end
+M.fold_all = function()
+  Services.agenda.fold_all()
+end
+M.unfold_all = function()
+  Services.agenda.unfold_all()
+end
+M.push_undo = function(fn)
+  Store.push_undo(fn)
+end
+M.pop_undo = function()
+  return Store.pop_undo()
+end
+M.open_view = function(key, opts)
+  Services.agenda.open_view(key, opts)
+end
+M.clear_view = function()
+  Services.agenda.clear_view()
+end
+M.list_views = function()
+  return Services.agenda.list_views()
+end
 
 function M.show_view_picker()
   local views = Services.agenda.list_views()
@@ -113,7 +148,9 @@ function M.show_view_picker()
   for i, item in ipairs(items) do
     local line = string.format(' %s  %s', tostring(i), item.label)
     lines[#lines + 1] = line
-    if #line > widest then widest = #line end
+    if #line > widest then
+      widest = #line
+    end
   end
 
   local buf = vim.api.nvim_create_buf(false, true)
@@ -125,22 +162,30 @@ function M.show_view_picker()
   local h = #lines + 2
   local w = math.max(widest + 4, 30)
   local win = vim.api.nvim_open_win(buf, true, {
-    relative = 'editor', style = 'minimal', border = 'rounded',
+    relative = 'editor',
+    style = 'minimal',
+    border = 'rounded',
     row = math.floor((ui.height - h) / 2),
     col = math.floor((ui.width - w) / 2),
-    width = w, height = h,
-    title = 'Custom Views', title_pos = 'center',
+    width = w,
+    height = h,
+    title = 'Custom Views',
+    title_pos = 'center',
   })
   vim.api.nvim_win_set_option(win, 'cursorline', true)
 
   local function close()
-    if vim.api.nvim_win_is_valid(win) then vim.api.nvim_win_close(win, true) end
+    if vim.api.nvim_win_is_valid(win) then
+      vim.api.nvim_win_close(win, true)
+    end
   end
 
   local function select_item(idx)
     close()
     local item = items[idx]
-    if not item then return end
+    if not item then
+      return
+    end
     if item.key == nil then
       Services.agenda.clear_view()
     else
@@ -154,7 +199,9 @@ function M.show_view_picker()
   end, { buffer = buf, silent = true })
 
   for i = 1, math.min(#items, 9) do
-    vim.keymap.set('n', tostring(i), function() select_item(i) end, { buffer = buf, silent = true })
+    vim.keymap.set('n', tostring(i), function()
+      select_item(i)
+    end, { buffer = buf, silent = true })
   end
 
   for _, k in ipairs({ 'q', '<Esc>' }) do
