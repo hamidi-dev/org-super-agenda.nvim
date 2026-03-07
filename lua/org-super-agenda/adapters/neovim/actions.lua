@@ -791,8 +791,11 @@ function A.set_keymaps(buf, win, line_map, reopen)
 
   -- close
   local function wipe()
-    local popup = cfg.popup_mode
-    if popup and popup.enabled and popup.hide_command then
+    local popup = get_cfg().popup_mode
+    -- Check enabled lazily at call time: explicit config OR env var set in the nvim session.
+    -- The env var approach is the zero-config path for the tmux script.
+    local enabled = popup and (popup.enabled or vim.env.ORG_SUPER_AGENDA_POPUP == '1')
+    if enabled and popup and popup.hide_command then
       -- Popup mode: detach from tmux session to hide the popup
       vim.fn.system(popup.hide_command)
     else

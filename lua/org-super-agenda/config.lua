@@ -174,10 +174,12 @@ M.defaults = {
   -- Global fallback sort for groups that don't specify their own `sort`
   group_sort = { by = 'date_nearest', order = 'asc' },
 
-  -- Popup mode: when enabled, 'q' detaches from tmux instead of closing the buffer
+  -- Popup mode: when enabled, 'q' hides the popup instead of closing the buffer.
+  -- Auto-detected when launched via the org-super-agenda tmux script (ORG_SUPER_AGENDA_POPUP=1).
+  -- Override `hide_command` if you use a different popup mechanism.
   popup_mode = {
-    enabled = false,
-    hide_command = nil, -- e.g., "tmux detach-client"
+    enabled = vim.env.ORG_SUPER_AGENDA_POPUP == '1',
+    hide_command = 'tmux detach-client', -- closes the display-popup when attach-session exits
   },
 
   debug = false,
