@@ -163,10 +163,11 @@ return {
       -- Global fallback sort for groups that omit `sort`
       group_sort = { by='date_nearest', order='asc' },
 
-      -- Popup mode: run in a persistent tmux session for instant access
+      -- Popup mode: auto-detected when launched via the tmux script (ORG_SUPER_AGENDA_POPUP=1).
+      -- Override only if you use a different popup mechanism.
       popup_mode = {
-        enabled      = false,
-        hide_command = nil, -- e.g., "tmux detach-client"
+        enabled      = vim.env.ORG_SUPER_AGENDA_POPUP == '1',
+        hide_command = 'tmux detach-client',
       },
 
       debug = false,
@@ -443,16 +444,42 @@ When you press `s` and wait, a colored menu appears showing all available states
 
 ## 🪟 Popup Mode (tmux integration)
 
-Run OrgSuperAgenda in a dedicated tmux session for instant access. When enabled, pressing `q` hides the session instead of closing the buffer.
+Run OrgSuperAgenda in a dedicated tmux session for instant access. Pressing `q` hides the popup (nvim keeps running in the background) instead of closing the buffer.
+
+**No config needed** — popup mode is auto-detected when launched via the script below.
+
+**tmux script** (`~/.local/bin/tmux-org-agenda.sh` or anywhere on your `$PATH`):
+
+```bash
+#!/usr/bin/env bash
+SESSION="_org_agenda"
+
+if ! tmux has-session -t "=$SESSION" 2>/dev/null; then
+  tmux new-session -d -s "$SESSION" -e "ORG_SUPER_AGENDA_POPUP=1" \
+    "nvim +'autocmd User VeryLazy ++once OrgSuperAgenda fullscreen'"
+  tmux set-option -t "$SESSION" status off
+fi
+
+tmux display-popup -w 100% -h 99% -E \
+  "tmux attach-session -t '=$SESSION'"
+```
+
+**tmux binding**:
+
+```tmux
+bind -n 'M-a' run-shell -b "$HOME/.local/bin/tmux-org-agenda.sh"
+```
+
+That's it. The `ORG_SUPER_AGENDA_POPUP=1` env var tells the plugin it's running in a popup, so `q` runs `tmux detach-client` to hide the popup cleanly.
+
+Override if you use a different mechanism:
 
 ```lua
 popup_mode = {
-  enabled      = true,
-  hide_command = "tmux detach-client",
+  enabled      = true,            -- or use your own detection logic
+  hide_command = "my-hide-cmd",   -- anything that dismisses your popup
 }
 ```
-
-You can bind a tmux key to toggle the popup session for quick agenda access.
 
 ---
 
