@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.0](https://github.com/hamidi-dev/org-super-agenda.nvim/compare/v1.1.0...v2.0.0) (2026-03-08)
+
+### ⚠ BREAKING CHANGE
+
+* users on the old PID-file hide_command must update their
+tmux script and remove the manual popup_mode config block.
+
+### chore
+
+* add contributor credits to release notes ([](https://github.com/hamidi-dev/org-super-agenda.nvim/commit/ad45898a55ceb33113e928ea71ff62b0bb430942))
+* add stylua + editorconfig and apply consistent formatting ([](https://github.com/hamidi-dev/org-super-agenda.nvim/commit/52d3d45e1b24b8587463fcd99e3cdc0b39892175))
+* simplify PR template ([](https://github.com/hamidi-dev/org-super-agenda.nvim/commit/9c210cd043c92fb0ce44b22afe82e288e5ada1e9))
+
+### feat
+
+* add agenda clock in/out integration ([](https://github.com/hamidi-dev/org-super-agenda.nvim/commit/4de352faf6972033e5dba0f7813e49db485ccfe3))
+* add custom agenda views with picker and command support ([](https://github.com/hamidi-dev/org-super-agenda.nvim/commit/241ffe102737ff8080f7b9e004612c982ec1e5ca))
+* add foldable groups with item counts ([](https://github.com/hamidi-dev/org-super-agenda.nvim/commit/abe6ae429e4550b2e57bc503a9dc985cb91cd8f7))
+* add marking + bulk state/reschedule/deadline actions ([](https://github.com/hamidi-dev/org-super-agenda.nvim/commit/3725ef8fd2ee62a57900b5e383c252f7cf6cbae8))
+* make goto and fold keymaps configurable ([](https://github.com/hamidi-dev/org-super-agenda.nvim/commit/79072a3448a97a6ec43f1667572b24a78f153aef))
+* simplify popup_mode with auto-detection via env var ([](https://github.com/hamidi-dev/org-super-agenda.nvim/commit/0296d55933ec0d7b5517028b398cef53cd25ee98))
+* streamline window and buffer handling ([](https://github.com/hamidi-dev/org-super-agenda.nvim/commit/597e6e8af56078fe76c208a108dc27d368675197))
+* support custom todo order sorting per group ([](https://github.com/hamidi-dev/org-super-agenda.nvim/commit/caaf26e21f44f9eaa87e62baa069cc31541cc91c))
+* support filetags ([](https://github.com/hamidi-dev/org-super-agenda.nvim/commit/c29f73e75f1b6bc793770aba0298999049bfaf12))
+* support filtering archived items ([](https://github.com/hamidi-dev/org-super-agenda.nvim/commit/33dc0a72cdf8c1b447d59a6e3ee64d6d9dd7bce2))
+
 ## [1.1.0](https://github.com/hamidi-dev/org-super-agenda.nvim/compare/v1.0.0...v1.1.0) (2026-02-25)
 
 ### Features
