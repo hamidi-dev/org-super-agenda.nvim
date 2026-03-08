@@ -1,30 +1,16 @@
-## Description
+## What does this PR do?
 
-<!-- Brief description of changes -->
+<!-- A short description of the change and why it's needed -->
 
-## Type of Change
+## Type
 
-- [ ] Bug fix (non-breaking change which fixes an issue)
-- [ ] New feature (non-breaking change which adds functionality)
-- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
-- [ ] Documentation update
-- [ ] Refactoring (no functional changes)
+- [ ] Bug fix
+- [ ] New feature
+- [ ] Breaking change
+- [ ] Docs / refactor
 
-## Testing
+## Notes
 
-<!-- How has this been tested? -->
+<!-- Anything the reviewer should know: edge cases, related issues, testing notes -->
 
-- [ ] Tests pass locally
-- [ ] Added new tests for new features
-- [ ] Updated existing tests
-
-## Checklist
-
-- [ ] My code follows the project's code style
-- [ ] I have updated the documentation (if needed)
-- [ ] My commit messages follow conventional commits format
-- [ ] All tests pass
-
-## Related Issues
-
-Fixes #(issue number)
+<!-- Fixes #(issue) -->
