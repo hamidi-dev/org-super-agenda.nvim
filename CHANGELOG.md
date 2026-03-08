@@ -11,6 +11,31 @@ tmux script and remove the manual popup_mode config block.
 
 ### chore
 
+* add stylua + editorconfig and apply consistent formatting ([](https://github.com/hamidi-dev/org-super-agenda.nvim/commit/b10af48b06e8c800383033213797770e5f9bf11a))
+* simplify PR template ([](https://github.com/hamidi-dev/org-super-agenda.nvim/commit/7f4ef16ba163f4e99a37780473f955cb4ebf89e2))
+
+### feat
+
+* add agenda clock in/out integration ([](https://github.com/hamidi-dev/org-super-agenda.nvim/commit/7fc9122b8ec713a59865f3e3eaacf2e3b93b2e7d))
+* add custom agenda views with picker and command support ([](https://github.com/hamidi-dev/org-super-agenda.nvim/commit/93a4bb86e6bc9e54f8b92d9cf638a3ea2099753a))
+* add foldable groups with item counts ([](https://github.com/hamidi-dev/org-super-agenda.nvim/commit/c7322bccb470144c32371174678139a45865b11c))
+* add marking + bulk state/reschedule/deadline actions ([](https://github.com/hamidi-dev/org-super-agenda.nvim/commit/5fd9d915626a7491614d3fa66e0033fbf41159c0))
+* make goto and fold keymaps configurable ([](https://github.com/hamidi-dev/org-super-agenda.nvim/commit/298fb960b01f3156dc6e5a11e52f3e8d49a0bdbf))
+* simplify popup_mode with auto-detection via env var ([](https://github.com/hamidi-dev/org-super-agenda.nvim/commit/25186ebb7a1e13208192c7a39129b3d7d8929481))
+* streamline window and buffer handling ([](https://github.com/hamidi-dev/org-super-agenda.nvim/commit/b35c02c4d7a71fed035948283b16062a4186d9a3))
+* support custom todo order sorting per group ([](https://github.com/hamidi-dev/org-super-agenda.nvim/commit/a0dc23191937afbafe09cb22db4923784de3680d))
+* support filetags ([](https://github.com/hamidi-dev/org-super-agenda.nvim/commit/c1de75a88177afe6f32cafae63c749abdeda6317))
+* support filtering archived items ([](https://github.com/hamidi-dev/org-super-agenda.nvim/commit/748340d44ff172807900eb6fd060d9be6a8567f9))
+
+## [2.0.0](https://github.com/hamidi-dev/org-super-agenda.nvim/compare/v1.1.0...v2.0.0) (2026-03-08)
+
+### ⚠ BREAKING CHANGE
+
+* users on the old PID-file hide_command must update their
+tmux script and remove the manual popup_mode config block.
+
+### chore
+
 * add contributor credits to release notes ([](https://github.com/hamidi-dev/org-super-agenda.nvim/commit/ad45898a55ceb33113e928ea71ff62b0bb430942))
 * add stylua + editorconfig and apply consistent formatting ([](https://github.com/hamidi-dev/org-super-agenda.nvim/commit/52d3d45e1b24b8587463fcd99e3cdc0b39892175))
 * simplify PR template ([](https://github.com/hamidi-dev/org-super-agenda.nvim/commit/9c210cd043c92fb0ce44b22afe82e288e5ada1e9))
