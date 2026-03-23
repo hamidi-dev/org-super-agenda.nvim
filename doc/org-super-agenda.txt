@@ -59,11 +59,19 @@ Call |lua| to setup the plugin:
 lua << EOF
 ```
 
+First configure nvim-orgmode with your agenda files:
+```
+require('orgmode').setup({
+  org_agenda_files = {'~/org/**/*', '~/work/**/*.org'},
+  -- ... other orgmode config
+})
+```
+
+org-super-agenda will automatically use orgmode's org_agenda_files:
 ```
 require('org-super-agenda').setup({
-  org_directories     = {},        -- recurse for *.org files
-  exclude_files       = {},        -- files to ignore
-  exclude_directories = {},        -- directories to ignore
+  exclude_files       = {},        -- optional: files to ignore
+  exclude_directories = {},        -- optional: directories to ignore
   -- additional options are documented below and in the source
 })
 EOF
@@ -397,8 +405,6 @@ The defaults (see |lua/org-super-agenda/config.lua|) are:
 
 >
 M.defaults = {
-  org_files           = {},
-  org_directories     = {},
   exclude_files       = {},
   exclude_directories = {},
   keymaps             = {

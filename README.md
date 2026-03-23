@@ -64,10 +64,15 @@ return {
     { 'lukas-reineke/headlines.nvim', config = true }, -- optional nicety
   },
   config = function()
+    -- First configure nvim-orgmode with your agenda files
+    require('orgmode').setup({
+      org_agenda_files = {'~/org/**/*', '~/work/**/*.org'},
+      -- ... other orgmode config
+    })
+
+    -- org-super-agenda will automatically use orgmode's org_agenda_files
     require('org-super-agenda').setup({
-      -- Where to look for .org files
-      org_files           = {},
-      org_directories     = {}, -- recurse for *.org
+      -- Optional: exclude specific files or directories from the agenda
       exclude_files       = {},
       exclude_directories = {},
 

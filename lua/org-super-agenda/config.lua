@@ -2,8 +2,6 @@
 local M = {}
 
 M.defaults = {
-  org_files = {},
-  org_directories = {},
   exclude_files = {},
   exclude_directories = {},
   keymaps = {
