@@ -6,18 +6,6 @@ function U.expand(path)
   return (path:gsub('^~', vim.fn.expand('$HOME')))
 end
 
-function U.get_org_files(dir)
-  local res, cmd = {}, string.format('find %q -type f -name "*.org"', U.expand(dir))
-  local handle = io.popen(cmd)
-  if handle then
-    for f in handle:lines() do
-      res[#res + 1] = f
-    end
-    handle:close()
-  end
-  return res
-end
-
 function U.show_help()
   local cfg = get_cfg()
   local km = cfg.keymaps or {}

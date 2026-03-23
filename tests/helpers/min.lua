@@ -8,7 +8,12 @@ package.path = table.concat({
 
 -- --- orgmode‑Stubs ----------------------------------------------------
 package.preload['orgmode'] = function()
-  return { reload = function() end }
+  return {
+    reload = function() end,
+    config = {
+      org_agenda_files = {},
+    },
+  }
 end
 package.preload['orgmode.api'] = function()
   local function load(_)
@@ -17,10 +22,7 @@ package.preload['orgmode.api'] = function()
   return { load = load, org = { load = load } }
 end
 
-require('org-super-agenda').setup({
-  org_files = {},
-  org_directories = {},
-})
+require('org-super-agenda').setup({})
 
 if vim.islist == nil then
   vim.islist = vim.tbl_islist

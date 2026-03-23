@@ -6,60 +6,52 @@ local Item = require('org-super-agenda.core.item')
 
 local S = {}
 
--- Utility: expand directories/files declared in config and load orgmode files
+-- Load all org files directly from nvim-orgmode (respects org_agenda_files)
 local function load_org_files()
   local C = cfg()
-  local want, skip = {}, {}
-  local function add(tbl, k)
-    if k and k ~= '' then
-      tbl[utils.expand(k)] = true
-    end
+
+  local ok_api, org_api = pcall(require, 'orgmode.api')
+  if not ok_api or not org_api or not org_api.load then
+    error('nvim-orgmode is required but not found. Please install nvim-orgmode/orgmode')
   end
 
-  for _, f in ipairs(C.org_files or {}) do
-    add(want, f)
+  -- orgmode.api.load() with no args returns all agenda files already resolved
+  local ok, all_files = pcall(org_api.load)
+  if not ok or not all_files then
+    return {}
   end
-  for _, d in ipairs(C.org_directories or {}) do
-    for _, f in ipairs(utils.get_org_files(d)) do
-      add(want, f)
-    end
-  end
+
+  -- Build exclusion set
+  local skip = {}
   for _, f in ipairs(C.exclude_files or {}) do
-    add(skip, f)
-  end
-  for _, d in ipairs(C.exclude_directories or {}) do
-    for p in pairs(want) do
-      if p:find('^' .. vim.pesc(utils.expand(d))) then
-        skip[p] = true
-      end
+    if f and f ~= '' then
+      skip[utils.expand(f)] = true
     end
   end
-
-  local ok_api, api_root = pcall(require, 'orgmode.api')
-  if not ok_api then
-    return {}
-  end
-  local org_api = api_root.load and api_root or api_root.org
-  if not (org_api and org_api.load) then
-    return {}
+  local skip_dirs = {}
+  for _, d in ipairs(C.exclude_directories or {}) do
+    if d and d ~= '' then
+      skip_dirs[#skip_dirs + 1] = utils.expand(d)
+    end
   end
 
   local files = {}
-  for path in pairs(want) do
-    if not skip[path] then
-      local ok, f = pcall(org_api.load, path)
-      if ok and f then
-        if f.filename or f._file then
-          files[#files + 1] = f
-        elseif vim.islist(f) then
-          vim.list_extend(files, f)
+  for _, f in ipairs(all_files) do
+    local path = f.filename or (f._file and f._file.filename)
+    if path and not skip[path] then
+      local excluded = false
+      for _, d in ipairs(skip_dirs) do
+        if path:find('^' .. vim.pesc(d)) then
+          excluded = true
+          break
         end
+      end
+      if not excluded then
+        files[#files + 1] = f
       end
     end
   end
-  for i, f in ipairs(files) do
-    files[i] = f:reload()
-  end
+
   return files
 end
 
