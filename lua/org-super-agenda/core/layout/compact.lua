@@ -8,6 +8,12 @@ local function truncate(str, len)
   return str:sub(1, len)
 end
 
+local function file_stem(path)
+  local p = (path or ''):gsub('\\', '/')
+  local base = p:match('[^/]+$') or ''
+  return base:gsub('%.org$', '')
+end
+
 local MARK_GLYPH = '● '
 local CLOCK_GLYPH = '⏱ '
 local function item_key(it)
@@ -49,7 +55,7 @@ function L.build(groups, win_width, cfg, marked)
 
   for _, grp in ipairs(groups) do
     for _, it in ipairs(grp.items) do
-      local name = ((it.file or ''):match('[^/]+$') or ''):gsub('%.org$', '') .. ':'
+      local name = file_stem(it.file) .. ':'
       if #name > fname_w then
         fname_w = #name
       end
@@ -72,7 +78,7 @@ function L.build(groups, win_width, cfg, marked)
 
       if not grp.collapsed then
         for _, it in ipairs(grp.items) do
-          local name = (((it.file or ''):match('[^/]+$') or ''):gsub('%.org$', '') .. ':')
+          local name = file_stem(it.file) .. ':'
           local label = build_labels(it)
           if label == '' then
             label = string.rep(' ', label_w)
@@ -92,6 +98,7 @@ function L.build(groups, win_width, cfg, marked)
           local s_fn = #text
           text = text .. string.format('%-' .. fname_w .. 's', name)
           spans[#spans + 1] = { field = 'filename', s = s_fn, e = #text, state = it.todo_state }
+          text = text .. ' '
           local s_lab = #text
           text = text .. label
           spans[#spans + 1] = { field = 'date', s = s_lab, e = #text, state = it.todo_state }

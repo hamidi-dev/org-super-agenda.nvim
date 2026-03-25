@@ -799,7 +799,10 @@ function A.set_keymaps(buf, win, line_map, reopen)
       -- Popup mode: detach from tmux session to hide the popup
       vim.fn.system(popup.hide_command)
     else
-      -- Normal mode: close buffer
+      -- Normal mode: close window + buffer
+      if vim.api.nvim_win_is_valid(win) then
+        pcall(vim.api.nvim_win_close, win, true)
+      end
       if vim.api.nvim_buf_is_valid(buf) then
         pcall(vim.api.nvim_buf_delete, buf, { force = true })
       end
