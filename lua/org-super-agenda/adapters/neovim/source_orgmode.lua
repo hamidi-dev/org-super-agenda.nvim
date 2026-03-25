@@ -10,6 +10,17 @@ local S = {}
 local function load_org_files()
   local C = cfg()
 
+  local ok_org, orgmode = pcall(require, 'orgmode')
+  if not ok_org or not orgmode or not orgmode.files or not orgmode.files.load_sync then
+    error('nvim-orgmode is required but not found. Please install nvim-orgmode/orgmode')
+  end
+
+  -- Ensure orgmode has fully loaded agenda files before reading them.
+  -- Without this, orgmode.api.load() can return an empty/partial list on first open.
+  pcall(function()
+    orgmode.files:load_sync(false, 20000)
+  end)
+
   local ok_api, org_api = pcall(require, 'orgmode.api')
   if not ok_api or not org_api or not org_api.load then
     error('nvim-orgmode is required but not found. Please install nvim-orgmode/orgmode')
@@ -47,7 +58,11 @@ local function load_org_files()
         end
       end
       if not excluded then
-        files[#files + 1] = f
+        if f.reload then
+          files[#files + 1] = f:reload()
+        else
+          files[#files + 1] = f
+        end
       end
     end
   end

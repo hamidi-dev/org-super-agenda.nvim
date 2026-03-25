@@ -8,11 +8,17 @@ local function truncate(str, len)
   return str:sub(1, len)
 end
 
+local function file_stem(path)
+  local p = (path or ''):gsub('\\', '/')
+  local base = p:match('[^/]+$') or ''
+  return base:gsub('%.org$', '')
+end
+
 local function classic_prefix(it, cfg)
   local indent = '  ' .. string.rep(' ', it.level or 0)
   local pri = (it.priority and it.priority ~= '') and ('[#' .. it.priority .. ']') or nil
   local parts = {
-    filename = (cfg.show_filename and it.file) and (it.file:match('[^/]+$') or ''):gsub('%.org$', ''),
+    filename = (cfg.show_filename and it.file) and file_stem(it.file),
     todo = it.todo_state,
     priority = pri,
     headline = truncate(it.headline or '', cfg.heading_max_length),
@@ -91,7 +97,7 @@ function L.build(groups, win_width, cfg, marked)
           local meta_str = table.concat(meta, ' ')
 
           local parts = {
-            filename = (cfg.show_filename and it.file) and (it.file:match('[^/]+$') or ''):gsub('%.org$', ''),
+            filename = (cfg.show_filename and it.file) and file_stem(it.file),
             todo = it.todo_state,
             priority = pri,
             headline = truncate(it.headline or '', cfg.heading_max_length),
