@@ -101,7 +101,7 @@ function U.show_help()
 
   local ui = vim.api.nvim_list_uis()[1]
   local h, w = #out + 2, 60
-  vim.api.nvim_open_win(buf, true, {
+  local win = vim.api.nvim_open_win(buf, true, {
     relative = 'editor',
     style = 'minimal',
     border = 'rounded',
@@ -113,6 +113,7 @@ function U.show_help()
   })
 
   local function close()
+    pcall(vim.api.nvim_win_close, win, true)
     pcall(vim.api.nvim_buf_delete, buf, { force = true })
   end
   for _, k in ipairs({ 'g?', 'q', '<Esc>' }) do
