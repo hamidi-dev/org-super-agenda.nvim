@@ -35,6 +35,7 @@ A Neovim plugin inspired by [org-super-agenda](https://github.com/alphapapa/org-
 * **Right‑aligned tags**, customizable header format, and filename display
 * **Safety**: refuses edits when a swapfile is present or buffer is modified elsewhere
 * **Sticky DONE**: items marked DONE during the session remain visible until you close the window
+* **Repeat tasks**: repeating TODOs follow nvim-orgmode behavior when marked done (advance repeater dates, reset state, preserve repeat metadata)
 
 ---
 
