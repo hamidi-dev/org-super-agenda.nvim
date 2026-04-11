@@ -345,6 +345,147 @@ local function safe_set_heading_state(hl, next_state)
   end
 end
 
+local function get_headline_todo_keywords(hl)
+  local section = hl and hl._section
+  local file = section and section.file
+  if not (file and file.get_todo_keywords) then
+    return nil
+  end
+  return file:get_todo_keywords()
+end
+
+local function should_use_orgmode_state_transition(hl, next_state)
+  if not hl or next_state == '' then
+    return false
+  end
+
+  local todos = get_headline_todo_keywords(hl)
+  if not todos then
+    return false
+  end
+
+  local current_value = hl.todo_value or (hl._section and hl._section:get_todo()) or ''
+  local current_kw = current_value ~= '' and todos:find(current_value) or nil
+  local target_kw = todos:find(next_state)
+
+  if not current_kw or not target_kw then
+    return false
+  end
+
+  return current_kw.sequence_index == target_kw.sequence_index and current_kw.type ~= target_kw.type
+end
+
+local function apply_heading_state_via_orgmode(hl, next_state)
+  local todos = get_headline_todo_keywords(hl)
+  local current_value = hl.todo_value or (hl._section and hl._section:get_todo()) or ''
+  local current_kw = current_value ~= '' and todos and todos:find(current_value) or nil
+  local target_kw = todos and todos:find(next_state) or nil
+
+  if not todos or not current_kw or not target_kw then
+    return false, 'Could not resolve orgmode todo state transition'
+  end
+
+  local ok, result = pcall(function()
+    return hl:_do_action(function()
+      local org = require('orgmode')
+      local instance = org.instance()
+      local mappings = instance and instance.org_mappings
+      local current = instance and instance.files and instance.files:get_closest_headline()
+      if not current then
+        error('orgmode todo transition engine is unavailable', 0)
+      end
+
+      local old_state = current:get_todo()
+      local was_done = current:is_done()
+      current:set_todo(next_state)
+
+      local item = instance.files:get_closest_headline()
+      local is_done = item:is_done() and not was_done
+      local is_undone = not item:is_done() and was_done
+
+      if not is_done and not is_undone then
+        return true
+      end
+
+      local org_config = require('orgmode.config')
+      local Date = require('orgmode.objects.date')
+      local TodoState = require('orgmode.objects.todo_state')
+      local repeater_dates = item:get_repeater_dates()
+
+      if #repeater_dates == 0 then
+        local log_closed_time = org_config.org_log_done == 'time'
+        if log_closed_time then
+          if is_done then
+            item:set_closed_date()
+          elseif is_undone then
+            item:remove_closed_date()
+          end
+        end
+        return true
+      end
+
+      if not (mappings and mappings._replace_date) then
+        error('orgmode repeater engine is unavailable', 0)
+      end
+
+      for _, date in ipairs(repeater_dates) do
+        mappings:_replace_date(date:apply_repeater())
+      end
+
+      item = instance.files:get_closest_headline()
+      local new_todo = item:get_todo()
+      local todo_state = TodoState:new({ current_state = new_todo, todos = item.file:get_todo_keywords() })
+      local reset_keyword = todo_state:get_reset_todo(item, old_state)
+      item:set_todo(reset_keyword.value)
+
+      local log_repeat_enabled = org_config.org_log_repeat ~= false
+      local prompt_repeat_note = org_config.org_log_repeat == 'note'
+      local prompt_done_note = org_config.org_log_done == 'note'
+      if log_repeat_enabled then
+        item:set_property('LAST_REPEAT', Date.now():to_wrapped_string(false))
+        if not prompt_repeat_note and not prompt_done_note then
+          local indent = item:get_indent()
+          local repeat_note_template = ('%s- State %-12s from %-12s [%s]'):format(
+            indent,
+            [["]] .. (new_todo or '') .. [["]],
+            [["]] .. (old_state or '') .. [["]],
+            Date.now():to_string()
+          )
+          item:add_note({ repeat_note_template })
+        end
+      end
+
+      return true
+    end):wait(20000)
+  end)
+
+  if not ok then
+    return false, tostring(result)
+  end
+
+  return true, result
+end
+
+local function apply_heading_state(hl, next_state)
+  if should_use_orgmode_state_transition(hl, next_state) then
+    return apply_heading_state_via_orgmode(hl, next_state)
+  end
+
+  local ok, err = safe_set_heading_state(hl, next_state)
+  if not ok then
+    return false, err
+  end
+
+  local reload_ok, reloaded = pcall(function()
+    return hl:reload()
+  end)
+  if reload_ok and reloaded then
+    return true, reloaded
+  end
+
+  return true, hl
+end
+
 -- === headline toolbelt ===
 local function with_headline(line_map, cb)
   local cur = vim.api.nvim_win_get_cursor(0)
@@ -465,14 +606,14 @@ local function set_state_for_headline(line_map, next_state)
     local snap = st.loaded and snapshot_heading_from_buf(hl) or snapshot_heading_from_disk(hl.file.filename, hl.position.start_line)
     Store.push_undo(make_restore_from_snapshot(snap))
 
-    local success, err = safe_set_heading_state(hl, next_state)
+    local success, updated = apply_heading_state(hl, next_state)
     if not success then
-      vim.notify(err, vim.log.levels.WARN)
+      vim.notify(updated, vim.log.levels.WARN)
       return
     end
 
-    local key = key_for_hl(hl)
-    if next_state == 'DONE' then
+    local key = key_for_hl(updated)
+    if updated.todo_type == 'DONE' then
       Store.sticky_add(key)
     else
       Store.sticky_remove(key)
@@ -721,15 +862,16 @@ local function bulk_action_menu(line_map)
           local st = buf_status_for(hl_fname)
           local snap = st.loaded and snapshot_heading_from_buf(hl) or snapshot_heading_from_disk(hl_fname, hl_start_line(hl))
           restores[#restores + 1] = make_restore_from_snapshot(snap)
-          local ok3, err = safe_set_heading_state(hl, next_state)
+          local ok3, updated = apply_heading_state(hl, next_state)
           if not ok3 then
-            vim.notify(err, vim.log.levels.WARN)
-          end
-          local key = key_for_hl(hl)
-          if next_state == 'DONE' then
-            Store.sticky_add(key)
+            vim.notify(updated, vim.log.levels.WARN)
           else
-            Store.sticky_remove(key)
+            local key = key_for_hl(updated or hl)
+            if updated and updated.todo_type == 'DONE' then
+              Store.sticky_add(key)
+            else
+              Store.sticky_remove(key)
+            end
           end
         end
       end
@@ -1323,14 +1465,14 @@ function A.set_keymaps(buf, win, line_map, reopen)
       local snap = st.loaded and snapshot_heading_from_buf(hl) or snapshot_heading_from_disk(hl.file.filename, hl.position.start_line)
       Store.push_undo(make_restore_from_snapshot(snap))
 
-      local ok, err = safe_set_heading_state(hl, next_state)
+      local ok, updated = apply_heading_state(hl, next_state)
       if not ok then
-        vim.notify(err, vim.log.levels.WARN)
+        vim.notify(updated, vim.log.levels.WARN)
         return
       end
 
-      local key = key_for_hl(hl)
-      if next_state == 'DONE' then
+      local key = key_for_hl(updated)
+      if updated.todo_type == 'DONE' then
         Store.sticky_add(key)
       else
         Store.sticky_remove(key)

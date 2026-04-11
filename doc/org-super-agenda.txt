@@ -571,6 +571,8 @@ SAFETY NOTES                                                  *org-super-agenda-
 * Refuses edits if buffer is modified in Neovim or a swapfile is detected
 * DONE items set during the session remain visible in a dedicated group
   until the agenda window is closed ("sticky DONE")
+* Repeating TODOs follow nvim-orgmode behavior when marked done:
+  repeater dates advance, todo state resets, and repeat metadata is preserved
 * The catch‑all "Other" group never collects DONE items
 
 ===============================================================================
