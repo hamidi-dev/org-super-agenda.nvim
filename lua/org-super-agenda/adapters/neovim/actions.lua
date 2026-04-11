@@ -104,6 +104,16 @@ local function has_swap_for(path)
   return vim.fn.glob(patt) ~= ''
 end
 
+local function is_swap_error(err)
+  local s = tostring(err or '')
+  return s:find('Vim:E325', 1, true) ~= nil or s:find('E325:', 1, true) ~= nil
+end
+
+local function notify_swap_conflict(path, action)
+  local short = vim.fn.fnamemodify(path or '', ':~:.')
+  vim.notify(string.format('%s blocked: swap-file conflict (E325) for %s. Resolve the swap/recovery prompt and try again.', action, short), vim.log.levels.WARN)
+end
+
 local function buf_status_for(path)
   local bufnr = vim.fn.bufnr(path)
   if bufnr == -1 then
@@ -561,12 +571,22 @@ local function bulk_apply_date(targets, cur, first_hl, snap_first, keyword, open
     return
   end
 
+  local st0 = buf_status_for(fname)
+  if (not st0.loaded) and has_swap_for(fname) then
+    notify_swap_conflict(fname, keyword)
+    return
+  end
+
   -- read planning stamp BEFORE the picker runs (to detect removal afterwards)
   local before_stamp = find_stamp_near(fname, start_l, keyword)
 
   local ok_p, p = pcall(open_picker, first_hl)
   if not ok_p then
-    vim.notify('Could not open datepicker: ' .. tostring(p), vim.log.levels.WARN)
+    if is_swap_error(p) then
+      notify_swap_conflict(fname, keyword)
+    else
+      vim.notify('Could not open datepicker: ' .. tostring(p), vim.log.levels.WARN)
+    end
     return
   end
 
@@ -942,9 +962,24 @@ function A.set_keymaps(buf, win, line_map, reopen)
   -- reschedule / deadline (unchanged but undo-aware)
   vim.keymap.set('n', cfg.keymaps.reschedule, function()
     with_headline(line_map, function(cur, hl)
-      local st = buf_status_for(hl.file.filename)
-      local snap = st.loaded and snapshot_heading_from_buf(hl) or snapshot_heading_from_disk(hl.file.filename, hl.position.start_line)
-      local p = hl:set_scheduled()
+      local path = hl.file.filename
+      local st = buf_status_for(path)
+      if (not st.loaded) and has_swap_for(path) then
+        notify_swap_conflict(path, 'Reschedule')
+        return
+      end
+      local snap = st.loaded and snapshot_heading_from_buf(hl) or snapshot_heading_from_disk(path, hl.position.start_line)
+      local ok_p, p = pcall(function()
+        return hl:set_scheduled()
+      end)
+      if not ok_p then
+        if is_swap_error(p) then
+          notify_swap_conflict(path, 'Reschedule')
+        else
+          vim.notify('Could not open datepicker: ' .. tostring(p), vim.log.levels.WARN)
+        end
+        return
+      end
       local function after()
         Store.push_undo(make_restore_from_snapshot(snap))
         Services.agenda.refresh(cur)
@@ -959,9 +994,24 @@ function A.set_keymaps(buf, win, line_map, reopen)
 
   vim.keymap.set('n', cfg.keymaps.set_deadline, function()
     with_headline(line_map, function(cur, hl)
-      local st = buf_status_for(hl.file.filename)
-      local snap = st.loaded and snapshot_heading_from_buf(hl) or snapshot_heading_from_disk(hl.file.filename, hl.position.start_line)
-      local p = hl:set_deadline()
+      local path = hl.file.filename
+      local st = buf_status_for(path)
+      if (not st.loaded) and has_swap_for(path) then
+        notify_swap_conflict(path, 'Set deadline')
+        return
+      end
+      local snap = st.loaded and snapshot_heading_from_buf(hl) or snapshot_heading_from_disk(path, hl.position.start_line)
+      local ok_p, p = pcall(function()
+        return hl:set_deadline()
+      end)
+      if not ok_p then
+        if is_swap_error(p) then
+          notify_swap_conflict(path, 'Set deadline')
+        else
+          vim.notify('Could not open datepicker: ' .. tostring(p), vim.log.levels.WARN)
+        end
+        return
+      end
       local function after()
         Store.push_undo(make_restore_from_snapshot(snap))
         Services.agenda.refresh(cur)
