@@ -682,62 +682,7 @@ local function bulk_action_menu(line_map)
     end
   end
 
-  local count = #targets
-  local chunks = {
-    { 'Bulk (' .. count .. '): ', 'Normal' },
-    { 's', 'Comment' },
-    { '=state  ', 'Normal' },
-    { 'r', 'Comment' },
-    { '=reschedule  ', 'Normal' },
-    { 'd', 'Comment' },
-    { '=deadline', 'Normal' },
-  }
-  vim.api.nvim_echo(chunks, false, {})
-  local ok, c = pcall(vim.fn.getcharstr)
-  vim.api.nvim_echo({}, false, {})
-  if not ok then
-    return
-  end
-
-  local cur = vim.api.nvim_win_get_cursor(0)
-
-  if c == 's' then
-    -- bulk TODO state
-    local seq = {}
-    for _, s in ipairs(get_cfg().todo_states or {}) do
-      seq[#seq + 1] = s.name
-    end
-    if #seq == 0 then
-      return
-    end
-    local shortcuts, _ = build_state_shortcuts(get_cfg().todo_states or {})
-    local sch = { { '0', 'Comment' }, { '=clear  ', 'Normal' } }
-    for _, s in ipairs(shortcuts) do
-      sch[#sch + 1] = { s.key, 'Comment' }
-      sch[#sch + 1] = { '=' .. s.name .. '  ', 'Normal' }
-    end
-    vim.api.nvim_echo(sch, false, {})
-    local ok2, c2 = pcall(vim.fn.getcharstr)
-    vim.api.nvim_echo({}, false, {})
-    if not ok2 then
-      return
-    end
-
-    local next_state
-    if c2 == '0' then
-      next_state = ''
-    else
-      for _, s in ipairs(shortcuts) do
-        if s.key == c2 then
-          next_state = s.name
-          break
-        end
-      end
-    end
-    if next_state == nil then
-      return
-    end
-
+  local function apply_bulk_state(next_state, cur)
     local restores = {}
     for _, it in ipairs(targets) do
       local hl_ok, api_root = pcall(require, 'orgmode.api')
@@ -772,16 +717,129 @@ local function bulk_action_menu(line_map)
     push_bulk_undo(restores)
     Store.mark_clear()
     Services.agenda.refresh(cur)
-  elseif c == 'r' then
-    -- bulk reschedule: prompt once via first item, apply result to all
-    bulk_apply_date(targets, cur, first_hl, snap_first, 'SCHEDULED', function(hl)
-      return hl:set_scheduled()
+  end
+
+  local function choose_bulk_state_select(cur)
+    local shortcuts, _ = build_state_shortcuts(get_cfg().todo_states or {})
+    if #shortcuts == 0 then
+      return
+    end
+    local options = { { key = '0', name = 'clear' } }
+    for _, s in ipairs(shortcuts) do
+      options[#options + 1] = { key = s.key, name = s.name }
+    end
+    vim.ui.select(options, {
+      prompt = 'Bulk state:',
+      format_item = function(item)
+        return string.format('%s = %s', item.key, item.name)
+      end,
+    }, function(choice)
+      if not choice then
+        return
+      end
+      local next_state = (choice.key == '0') and '' or choice.name
+      apply_bulk_state(next_state, cur)
     end)
-  elseif c == 'd' then
-    -- bulk deadline: same pattern
-    bulk_apply_date(targets, cur, first_hl, snap_first, 'DEADLINE', function(hl)
-      return hl:set_deadline()
+  end
+
+  local function choose_bulk_state_keys(cur)
+    local shortcuts, _ = build_state_shortcuts(get_cfg().todo_states or {})
+    if #shortcuts == 0 then
+      return
+    end
+    local sch = { { '0', 'Comment' }, { '=clear  ', 'Normal' } }
+    for _, s in ipairs(shortcuts) do
+      sch[#sch + 1] = { s.key, 'Comment' }
+      sch[#sch + 1] = { '=' .. s.name .. '  ', 'Normal' }
+    end
+    vim.api.nvim_echo(sch, false, {})
+    local ok2, c2 = pcall(vim.fn.getcharstr)
+    vim.api.nvim_echo({}, false, {})
+    if not ok2 then
+      return
+    end
+
+    local next_state
+    if c2 == '0' then
+      next_state = ''
+    else
+      for _, s in ipairs(shortcuts) do
+        if s.key == c2 then
+          next_state = s.name
+          break
+        end
+      end
+    end
+    if next_state == nil then
+      return
+    end
+    apply_bulk_state(next_state, cur)
+  end
+
+  local count = #targets
+  local mode = (get_cfg().bulk_action_prompt == 'select') and 'select' or 'keys'
+
+  if mode == 'select' then
+    local actions = {
+      { key = 's', label = 'set state' },
+      { key = 'r', label = 'reschedule' },
+      { key = 'd', label = 'deadline' },
+    }
+    vim.ui.select(actions, {
+      prompt = string.format('Bulk (%d) action:', count),
+      format_item = function(item)
+        return string.format('%s = %s', item.key, item.label)
+      end,
+    }, function(choice)
+      if not choice then
+        return
+      end
+      local cur = vim.api.nvim_win_get_cursor(0)
+      if choice.key == 's' then
+        choose_bulk_state_select(cur)
+      elseif choice.key == 'r' then
+        -- bulk reschedule: prompt once via first item, apply result to all
+        bulk_apply_date(targets, cur, first_hl, snap_first, 'SCHEDULED', function(hl)
+          return hl:set_scheduled()
+        end)
+      elseif choice.key == 'd' then
+        -- bulk deadline: same pattern
+        bulk_apply_date(targets, cur, first_hl, snap_first, 'DEADLINE', function(hl)
+          return hl:set_deadline()
+        end)
+      end
     end)
+  else
+    local chunks = {
+      { 'Bulk (' .. count .. '): ', 'Normal' },
+      { 's', 'Comment' },
+      { '=state  ', 'Normal' },
+      { 'r', 'Comment' },
+      { '=reschedule  ', 'Normal' },
+      { 'd', 'Comment' },
+      { '=deadline', 'Normal' },
+    }
+    vim.api.nvim_echo(chunks, false, {})
+    local ok, c = pcall(vim.fn.getcharstr)
+    vim.api.nvim_echo({}, false, {})
+    if not ok then
+      return
+    end
+
+    local cur = vim.api.nvim_win_get_cursor(0)
+    if c == 's' then
+      choose_bulk_state_keys(cur)
+    elseif c == 'r' then
+      -- bulk reschedule: prompt once via first item, apply result to all
+      bulk_apply_date(targets, cur, first_hl, snap_first, 'SCHEDULED', function(hl)
+        return hl:set_scheduled()
+      end)
+    elseif c == 'd' then
+      -- bulk deadline: same pattern
+      bulk_apply_date(targets, cur, first_hl, snap_first, 'DEADLINE', function(hl)
+        return hl:set_deadline()
+      end)
+    end
   end
 end
 

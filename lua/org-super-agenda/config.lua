@@ -158,6 +158,10 @@ M.defaults = {
   show_other_group = false,
   show_tags = true,
   show_filename = true,
+  -- How bulk action prompts are shown:
+  --   'keys'   = inline key hints + getchar (fast keyboard flow)
+  --   'select' = vim.ui.select picker (better with UI routers like noice.nvim)
+  bulk_action_prompt = 'keys',
   heading_max_length = 70,
   persist_hidden = false,
   fold_item_action = 'preview',
