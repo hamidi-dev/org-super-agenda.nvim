@@ -158,6 +158,7 @@ return {
       show_other_group   = false,     -- show catch-all section
       show_tags          = true,      -- draw tags on the right
       show_filename      = true,      -- include [filename]
+      bulk_action_prompt = 'keys',    -- 'keys' (fast keypress) | 'select' (vim.ui.select / noice-friendly)
       heading_max_length = 70,
       persist_hidden     = false,     -- keep hidden items across reopen
       view_mode          = 'classic', -- 'classic' | 'compact'
