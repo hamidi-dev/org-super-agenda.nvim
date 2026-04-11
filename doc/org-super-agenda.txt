@@ -519,6 +519,7 @@ M.defaults = {
   show_other_group    = false,
   show_tags           = true,
   show_filename       = true,
+  bulk_action_prompt  = 'keys', -- 'keys' | 'select'
   heading_max_length  = 70,
   persist_hidden      = false,
   fold_item_action    = 'preview',  -- 'preview' or 'goto'
