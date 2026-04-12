@@ -96,22 +96,68 @@ local function clock_goto_active()
 end
 
 -- === helpers: swap detection, buffer status, snapshots, safe writes ===
-local function has_swap_for(path)
-  -- Heuristic: look for .*{basename}*.sw?
-  local dir = vim.fn.fnamemodify(path, ':p:h')
-  local base = vim.fn.fnamemodify(path, ':t')
-  local patt = dir .. '/.*' .. vim.fn.escape(base, '[]^$\\.*') .. '.*.sw?'
-  return vim.fn.glob(patt) ~= ''
-end
-
 local function is_swap_error(err)
   local s = tostring(err or '')
   return s:find('Vim:E325', 1, true) ~= nil or s:find('E325:', 1, true) ~= nil
 end
 
+local function swap_glob_candidates(path)
+  local abs = vim.fn.fnamemodify(path, ':p')
+  local base = vim.fn.fnamemodify(abs, ':t')
+  local candidates = {}
+
+  local dir_entries = vim.opt.directory:get()
+  if type(dir_entries) ~= 'table' then
+    dir_entries = vim.split(vim.o.directory or '', ',', { plain = true, trimempty = true })
+  end
+
+  for _, entry in ipairs(dir_entries or {}) do
+    if entry and entry ~= '' and entry ~= '.' then
+      local expanded = vim.fn.expand(entry)
+      if expanded:sub(-2) == '//' then
+        local root = expanded:gsub('/+$', '')
+        local mangled = abs:gsub('[:/\\]', '%%')
+        candidates[#candidates + 1] = root .. '/' .. mangled .. '.sw?'
+      else
+        local root = expanded:gsub('/+$', '')
+        candidates[#candidates + 1] = root .. '/.' .. vim.fn.escape(base, '[]^$\\.*') .. '.*.sw?'
+      end
+    end
+  end
+
+  local local_dir = vim.fn.fnamemodify(abs, ':h')
+  candidates[#candidates + 1] = local_dir .. '/.' .. vim.fn.escape(base, '[]^$\\.*') .. '.*.sw?'
+  return candidates
+end
+
+local function has_swap_for(path)
+  for _, patt in ipairs(swap_glob_candidates(path)) do
+    if patt and patt ~= '' and vim.fn.glob(patt) ~= '' then
+      return true
+    end
+  end
+  return false
+end
+
 local function notify_swap_conflict(path, action)
   local short = vim.fn.fnamemodify(path or '', ':~:.')
-  vim.notify(string.format('%s blocked: swap-file conflict (E325) for %s. Resolve the swap/recovery prompt and try again.', action, short), vim.log.levels.WARN)
+  local msg = string.format('%s blocked: swap-file conflict (E325) for %s. Resolve the swap/recovery prompt and try again.', action, short)
+  vim.notify(msg, vim.log.levels.WARN, { title = 'org-super-agenda' })
+  pcall(vim.api.nvim_echo, { { msg, 'WarningMsg' } }, true, {})
+end
+
+local function notify_action_error(action, err, path)
+  if type(err) == 'table' and err.kind == 'swap_conflict' then
+    notify_swap_conflict(err.path or path, action)
+    return
+  end
+
+  if type(err) == 'string' and err:find('Detected a swap file', 1, true) then
+    notify_swap_conflict(path, action)
+    return
+  end
+
+  vim.notify(tostring(err), vim.log.levels.WARN, { title = 'org-super-agenda' })
 end
 
 local function buf_status_for(path)
@@ -377,12 +423,21 @@ end
 
 local function apply_heading_state_via_orgmode(hl, next_state)
   local todos = get_headline_todo_keywords(hl)
+  local path = (hl.file and hl.file.filename) or hl.filename
   local current_value = hl.todo_value or (hl._section and hl._section:get_todo()) or ''
   local current_kw = current_value ~= '' and todos and todos:find(current_value) or nil
   local target_kw = todos and todos:find(next_state) or nil
 
   if not todos or not current_kw or not target_kw then
     return false, 'Could not resolve orgmode todo state transition'
+  end
+
+  local st = buf_status_for(path)
+  if st.loaded and st.modified then
+    return false, 'File is open and modified in this Neovim; aborting to avoid data loss.'
+  end
+  if (not st.loaded) and has_swap_for(path) then
+    return false, { kind = 'swap_conflict', path = path }
   end
 
   local ok, result = pcall(function()
@@ -608,7 +663,7 @@ local function set_state_for_headline(line_map, next_state)
 
     local success, updated = apply_heading_state(hl, next_state)
     if not success then
-      vim.notify(updated, vim.log.levels.WARN)
+      notify_action_error('Set state', updated, hl.file and hl.file.filename)
       return
     end
 
@@ -864,7 +919,7 @@ local function bulk_action_menu(line_map)
           restores[#restores + 1] = make_restore_from_snapshot(snap)
           local ok3, updated = apply_heading_state(hl, next_state)
           if not ok3 then
-            vim.notify(updated, vim.log.levels.WARN)
+            notify_action_error('Bulk state change', updated, hl.file and hl.file.filename)
           else
             local key = key_for_hl(updated or hl)
             if updated and updated.todo_type == 'DONE' then
@@ -1467,7 +1522,7 @@ function A.set_keymaps(buf, win, line_map, reopen)
 
       local ok, updated = apply_heading_state(hl, next_state)
       if not ok then
-        vim.notify(updated, vim.log.levels.WARN)
+        notify_action_error('Cycle TODO', updated, hl.file and hl.file.filename)
         return
       end
 
