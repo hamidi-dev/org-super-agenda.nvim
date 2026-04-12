@@ -424,6 +424,7 @@ end
 local function apply_heading_state_via_orgmode(hl, next_state)
   local todos = get_headline_todo_keywords(hl)
   local path = (hl.file and hl.file.filename) or hl.filename
+  local start_line = hl.position and hl.position.start_line or 1
   local current_value = hl.todo_value or (hl._section and hl._section:get_todo()) or ''
   local current_kw = current_value ~= '' and todos and todos:find(current_value) or nil
   local target_kw = todos and todos:find(next_state) or nil
@@ -440,77 +441,95 @@ local function apply_heading_state_via_orgmode(hl, next_state)
     return false, { kind = 'swap_conflict', path = path }
   end
 
-  local ok, result = pcall(function()
-    return hl:_do_action(function()
-      local org = require('orgmode')
-      local instance = org.instance()
-      local mappings = instance and instance.org_mappings
-      local current = instance and instance.files and instance.files:get_closest_headline()
-      if not current then
-        error('orgmode todo transition engine is unavailable', 0)
-      end
+  local function run_transition()
+    local org = require('orgmode')
+    local instance = org.instance()
+    local mappings = instance and instance.org_mappings
+    local current = instance and instance.files and instance.files:get_closest_headline()
+    if not current then
+      error('orgmode todo transition engine is unavailable', 0)
+    end
 
-      local old_state = current:get_todo()
-      local was_done = current:is_done()
-      current:set_todo(next_state)
+    local old_state = current:get_todo()
+    local was_done = current:is_done()
+    current:set_todo(next_state)
 
-      local item = instance.files:get_closest_headline()
-      local is_done = item:is_done() and not was_done
-      local is_undone = not item:is_done() and was_done
+    local item = instance.files:get_closest_headline()
+    local is_done = item:is_done() and not was_done
+    local is_undone = not item:is_done() and was_done
 
-      if not is_done and not is_undone then
-        return true
-      end
-
-      local org_config = require('orgmode.config')
-      local Date = require('orgmode.objects.date')
-      local TodoState = require('orgmode.objects.todo_state')
-      local repeater_dates = item:get_repeater_dates()
-
-      if #repeater_dates == 0 then
-        local log_closed_time = org_config.org_log_done == 'time'
-        if log_closed_time then
-          if is_done then
-            item:set_closed_date()
-          elseif is_undone then
-            item:remove_closed_date()
-          end
-        end
-        return true
-      end
-
-      if not (mappings and mappings._replace_date) then
-        error('orgmode repeater engine is unavailable', 0)
-      end
-
-      for _, date in ipairs(repeater_dates) do
-        mappings:_replace_date(date:apply_repeater())
-      end
-
-      item = instance.files:get_closest_headline()
-      local new_todo = item:get_todo()
-      local todo_state = TodoState:new({ current_state = new_todo, todos = item.file:get_todo_keywords() })
-      local reset_keyword = todo_state:get_reset_todo(item, old_state)
-      item:set_todo(reset_keyword.value)
-
-      local log_repeat_enabled = org_config.org_log_repeat ~= false
-      local prompt_repeat_note = org_config.org_log_repeat == 'note'
-      local prompt_done_note = org_config.org_log_done == 'note'
-      if log_repeat_enabled then
-        item:set_property('LAST_REPEAT', Date.now():to_wrapped_string(false))
-        if not prompt_repeat_note and not prompt_done_note then
-          local indent = item:get_indent()
-          local repeat_note_template = ('%s- State %-12s from %-12s [%s]'):format(
-            indent,
-            [["]] .. (new_todo or '') .. [["]],
-            [["]] .. (old_state or '') .. [["]],
-            Date.now():to_string()
-          )
-          item:add_note({ repeat_note_template })
-        end
-      end
-
+    if not is_done and not is_undone then
       return true
+    end
+
+    local org_config = require('orgmode.config')
+    local Date = require('orgmode.objects.date')
+    local TodoState = require('orgmode.objects.todo_state')
+    local repeater_dates = item:get_repeater_dates()
+
+    if #repeater_dates == 0 then
+      local log_closed_time = org_config.org_log_done == 'time'
+      if log_closed_time then
+        if is_done then
+          item:set_closed_date()
+        elseif is_undone then
+          item:remove_closed_date()
+        end
+      end
+      return true
+    end
+
+    if not (mappings and mappings._replace_date) then
+      error('orgmode repeater engine is unavailable', 0)
+    end
+
+    for _, date in ipairs(repeater_dates) do
+      mappings:_replace_date(date:apply_repeater())
+    end
+
+    item = instance.files:get_closest_headline()
+    local new_todo = item:get_todo()
+    local todo_state = TodoState:new({ current_state = new_todo, todos = item.file:get_todo_keywords() })
+    local reset_keyword = todo_state:get_reset_todo(item, old_state)
+    item:set_todo(reset_keyword.value)
+
+    local log_repeat_enabled = org_config.org_log_repeat ~= false
+    local prompt_repeat_note = org_config.org_log_repeat == 'note'
+    local prompt_done_note = org_config.org_log_done == 'note'
+    if log_repeat_enabled then
+      item:set_property('LAST_REPEAT', Date.now():to_wrapped_string(false))
+      if not prompt_repeat_note and not prompt_done_note then
+        local indent = item:get_indent()
+        local repeat_note_template = ('%s- State %-12s from %-12s [%s]'):format(
+          indent,
+          [["]] .. (new_todo or '') .. [["]],
+          [["]] .. (old_state or '') .. [["]],
+          Date.now():to_string()
+        )
+        item:add_note({ repeat_note_template })
+      end
+    end
+
+    return true
+  end
+
+  local ok, result = pcall(function()
+    if st.loaded then
+      return vim.api.nvim_buf_call(st.bufnr, function()
+        local view = vim.fn.winsaveview() or {}
+        vim.fn.cursor({ start_line, 1 })
+        run_transition()
+        vim.cmd('silent noautocmd write')
+        vim.fn.winrestview(view)
+        local ok_reload, reloaded = pcall(function()
+          return hl:reload()
+        end)
+        return ok_reload and reloaded or hl
+      end)
+    end
+
+    return hl:_do_action(function()
+      return run_transition()
     end):wait(20000)
   end)
 
@@ -751,6 +770,55 @@ local function find_stamp_near(path, start_line, keyword)
     end
   end
   return nil
+end
+
+local function open_loaded_datepicker(hl, keyword, bufnr)
+  local Calendar = require('orgmode.objects.calendar')
+  local Date = require('orgmode.objects.date')
+
+  local get_date = keyword == 'SCHEDULED' and 'get_scheduled_date' or 'get_deadline_date'
+  local set_date = keyword == 'SCHEDULED' and 'set_scheduled_date' or 'set_deadline_date'
+  local remove_date = keyword == 'SCHEDULED' and 'remove_scheduled_date' or 'remove_deadline_date'
+  local title = keyword == 'SCHEDULED' and 'Set schedule' or 'Set deadline'
+  local initial = hl._section and hl._section[get_date] and hl._section[get_date](hl._section) or Date.today()
+
+  return Calendar.new({ date = initial, clearable = true, title = title }):open():next(function(new_date, cleared)
+    if not new_date and not cleared then
+      return
+    end
+
+    return vim.api.nvim_buf_call(bufnr, function()
+      local view = vim.fn.winsaveview() or {}
+      vim.fn.cursor({ hl.position.start_line, 1 })
+
+      local org = require('orgmode')
+      local item = org.instance().files:get_closest_headline()
+      if not item then
+        error('orgmode date change target is unavailable', 0)
+      end
+
+      if cleared then
+        item[remove_date](item)
+      else
+        item[set_date](item, new_date)
+      end
+
+      vim.cmd('silent noautocmd write')
+      vim.fn.winrestview(view)
+      return true
+    end)
+  end)
+end
+
+local function open_headline_datepicker(hl, keyword)
+  local st = buf_status_for(hl.file.filename)
+  if st.loaded then
+    return open_loaded_datepicker(hl, keyword, st.bufnr)
+  end
+  if keyword == 'SCHEDULED' then
+    return hl:set_scheduled()
+  end
+  return hl:set_deadline()
 end
 
 -- Apply a date bulk-op: open datepicker on first_hl, then mirror result to all targets.
@@ -1017,12 +1085,12 @@ local function bulk_action_menu(line_map)
       elseif choice.key == 'r' then
         -- bulk reschedule: prompt once via first item, apply result to all
         bulk_apply_date(targets, cur, first_hl, snap_first, 'SCHEDULED', function(hl)
-          return hl:set_scheduled()
+          return open_headline_datepicker(hl, 'SCHEDULED')
         end)
       elseif choice.key == 'd' then
         -- bulk deadline: same pattern
         bulk_apply_date(targets, cur, first_hl, snap_first, 'DEADLINE', function(hl)
-          return hl:set_deadline()
+          return open_headline_datepicker(hl, 'DEADLINE')
         end)
       end
     end)
@@ -1049,12 +1117,12 @@ local function bulk_action_menu(line_map)
     elseif c == 'r' then
       -- bulk reschedule: prompt once via first item, apply result to all
       bulk_apply_date(targets, cur, first_hl, snap_first, 'SCHEDULED', function(hl)
-        return hl:set_scheduled()
+        return open_headline_datepicker(hl, 'SCHEDULED')
       end)
     elseif c == 'd' then
       -- bulk deadline: same pattern
       bulk_apply_date(targets, cur, first_hl, snap_first, 'DEADLINE', function(hl)
-        return hl:set_deadline()
+        return open_headline_datepicker(hl, 'DEADLINE')
       end)
     end
   end
@@ -1167,7 +1235,7 @@ function A.set_keymaps(buf, win, line_map, reopen)
       end
       local snap = st.loaded and snapshot_heading_from_buf(hl) or snapshot_heading_from_disk(path, hl.position.start_line)
       local ok_p, p = pcall(function()
-        return hl:set_scheduled()
+        return open_headline_datepicker(hl, 'SCHEDULED')
       end)
       if not ok_p then
         if is_swap_error(p) then
@@ -1199,7 +1267,7 @@ function A.set_keymaps(buf, win, line_map, reopen)
       end
       local snap = st.loaded and snapshot_heading_from_buf(hl) or snapshot_heading_from_disk(path, hl.position.start_line)
       local ok_p, p = pcall(function()
-        return hl:set_deadline()
+        return open_headline_datepicker(hl, 'DEADLINE')
       end)
       if not ok_p then
         if is_swap_error(p) then
