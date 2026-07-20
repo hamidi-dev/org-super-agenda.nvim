@@ -69,7 +69,7 @@ function U.show_help()
     fmt(km.undo, 'Undo'),
     fmt(km.toggle_other, 'Toggle "Other" group'),
     fmt(km.toggle_duplicates, 'Toggle duplicates'),
-    fmt(km.cycle_view, 'Switch view (classic/compact)'),
+    fmt(km.cycle_view, 'Switch view (classic/compact/tree)'),
     fmt(km.hide_item, 'Hide headline from agenda'),
     fmt(km.reset_hidden, 'Reset hide'),
     fmt(km.fold_all, 'Fold all groups'),

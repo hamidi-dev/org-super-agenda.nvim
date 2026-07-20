@@ -165,13 +165,17 @@ M.defaults = {
   heading_max_length = 70,
   persist_hidden = false,
   fold_item_action = 'preview',
-  view_mode = 'classic',
+  view_mode = 'classic', -- 'classic' | 'compact' | 'tree'
   classic = {
     heading_order = { 'filename', 'todo', 'priority', 'headline' },
     short_date_labels = false,
     inline_dates = true,
   },
   compact = { filename_min_width = 10, label_min_width = 12 },
+  -- Tree view: renders each group's items hierarchically (subtasks nested
+  -- under their parent). show_ghost_parents inserts dimmed context rows for
+  -- ancestors that are not part of the group themselves.
+  tree = { show_ghost_parents = true },
 
   -- Global fallback sort for groups that don't specify their own `sort`
   group_sort = { by = 'date_nearest', order = 'asc' },

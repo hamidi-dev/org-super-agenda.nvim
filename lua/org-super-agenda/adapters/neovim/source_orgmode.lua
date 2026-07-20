@@ -244,12 +244,29 @@ function S.collect()
 
   local items = {}
 
-  -- Walk the tree, passing accumulated (inherited) tags downwards
-  local function walk(hl, inherited_tags)
+  -- Walk the tree, passing accumulated (inherited) tags and ancestry downwards
+  local function walk(hl, inherited_tags, ancestry)
     local all_tags = merge_tags(inherited_tags, hl.tags or {})
-    items[#items + 1] = headline_to_item(hl, inherited_tags)
+    local item = headline_to_item(hl, inherited_tags)
+    -- ancestor chain, nearest parent first (used by the tree view)
+    local parents = {}
+    for i = #ancestry, 1, -1 do
+      parents[#parents + 1] = ancestry[i]
+    end
+    item.parents = parents
+    items[#items + 1] = item
+
+    local child_ancestry = vim.list_slice(ancestry, 1, #ancestry)
+    child_ancestry[#child_ancestry + 1] = {
+      key = string.format('%s:%s', item.file or '', item._src_line or 0),
+      headline = hl.title,
+      level = hl.level,
+      todo_state = hl.todo_value,
+      file = item.file,
+      _src_line = item._src_line,
+    }
     for _, c in ipairs(hl.headlines or {}) do
-      walk(c, all_tags)
+      walk(c, all_tags, child_ancestry)
     end
   end
 
@@ -268,7 +285,7 @@ function S.collect()
 
     for _, hl in ipairs(file.headlines or {}) do
       -- Top-level headlines inherit filetags
-      walk(hl, filetags)
+      walk(hl, filetags, {})
     end
   end
 
