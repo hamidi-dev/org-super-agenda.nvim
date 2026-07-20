@@ -10,6 +10,8 @@ function H.ensure()
   pcall(vim.cmd, 'highlight default OrgSA_NONE guifg=#A0A0A0 gui=bold')
   pcall(vim.cmd, 'highlight default OrgSA_Marked guifg=#FFB86C gui=bold')
   pcall(vim.cmd, 'highlight default OrgSA_Clock guifg=#8BE9FD gui=bold')
+  pcall(vim.cmd, 'highlight default link OrgSA_TreeConnector NonText')
+  pcall(vim.cmd, 'highlight default link OrgSA_TreeGhost Comment')
 
   for _, st in ipairs(get_cfg().todo_states or {}) do
     local hl_group = st.hl_group or (type(st.highlight) == 'string' and st.highlight) or ('OrgSA_' .. st.name)

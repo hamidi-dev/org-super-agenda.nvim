@@ -31,7 +31,8 @@ A Neovim plugin inspired by [org-super-agenda](https://github.com/alphapapa/org-
 * **Toggle duplicates** across groups (`D`)
 * **Group folding**: `<Tab>` on headers, fold all (`zM`), unfold all (`zR`)
 * **Custom views** with pre-configured filters, groups, sort, and global keymaps (`V` picker)
-* **Switch view** between `classic` and `compact` (`ov`)
+* **Switch view** between `classic`, `compact`, and `tree` (`ov`)
+* **Tree view**: subtasks nest under their parent task with `├─`/`└─` connectors; parents outside the group appear as dimmed context rows
 * **Right‑aligned tags**, customizable header format, and filename display
 * **Safety**: refuses edits when a swapfile is present or buffer is modified elsewhere
 * **Sticky DONE**: items marked DONE during the session remain visible until you close the window
@@ -110,7 +111,7 @@ return {
         fold_all          = 'zM', -- collapse all groups
         unfold_all        = 'zR', -- expand all groups
         toggle_duplicates = 'D',  -- duplicate items may appear in multiple groups
-        cycle_view        = 'ov', -- switch view (classic/compact)
+        cycle_view        = 'ov', -- switch view (classic/compact/tree)
         bulk_mark         = 'm',  -- toggle mark on current item (● indicator)
         bulk_unmark_all   = 'M',  -- clear all marks
         bulk_reselect     = 'gv', -- reselect last marks
@@ -162,10 +163,11 @@ return {
       bulk_action_prompt = 'keys',    -- 'keys' (fast keypress) | 'select' (vim.ui.select / noice-friendly)
       heading_max_length = 70,
       persist_hidden     = false,     -- keep hidden items across reopen
-      view_mode          = 'classic', -- 'classic' | 'compact'
+      view_mode          = 'classic', -- 'classic' | 'compact' | 'tree'
 
       classic = { heading_order={'filename','todo','priority','headline'}, short_date_labels=false, inline_dates=true },
       compact = { filename_min_width=10, label_min_width=12 },
+      tree    = { show_ghost_parents=true }, -- dimmed context rows for parents outside the group
 
       -- Global fallback sort for groups that omit `sort`
       group_sort = { by='date_nearest', order='asc' },
@@ -388,6 +390,21 @@ When a custom view is active:
 
 * **classic**: headline prefix `[filename] TODO [#A] Title …` with inline or separate date line
 * **compact**: fixed columns for filename and date label (`Sched. in 3 d.:`), right-aligned tags
+* **tree**: hierarchy view — subtasks nest under their parent task within each group:
+
+  ```
+  * 💼 Work (4 items)
+    TODO Release v2.1
+    ├─ PROGRESS Write migration guide
+    │  └─ TODO Review code samples
+    └─ TODO Update screenshots
+  ```
+
+  Items keep the classic formatting; nesting follows the real org outline. When a
+  subtask matches a group but its parent doesn't (e.g. only the subtask is
+  scheduled today), the parent is shown as a **dimmed context row** so you still
+  see where the task belongs — disable with `tree = { show_ghost_parents = false }`.
+  Context rows are navigable: `<CR>`, `gf`, and `K` work on them like on normal items.
 
 Switch with `ov` (or set `view_mode` in config).
 

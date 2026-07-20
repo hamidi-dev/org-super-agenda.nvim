@@ -94,7 +94,8 @@ end
 function Services.agenda.cycle_view()
   local cur = view.is_open() and vim.api.nvim_win_get_cursor(0) or nil
   local m = store.get().view_mode
-  store.set_view_mode(m == 'classic' and 'compact' or 'classic')
+  local next_mode = { classic = 'compact', compact = 'tree', tree = 'classic' }
+  store.set_view_mode(next_mode[m] or 'classic')
   if cur then
     Services.agenda.refresh(cur)
   else

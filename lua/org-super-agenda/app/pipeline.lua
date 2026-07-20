@@ -5,6 +5,7 @@ local sort_core = require('org-super-agenda.core.sort')
 local views_core = require('org-super-agenda.core.views')
 local layout_classic = require('org-super-agenda.core.layout.classic')
 local layout_compact = require('org-super-agenda.core.layout.compact')
+local layout_tree = require('org-super-agenda.core.layout.tree')
 
 local Pipeline = {}
 
@@ -76,8 +77,14 @@ function Pipeline.run(source, cfg, state)
     }
   end
 
-  -- choose layout
-  local layout = (state.view_mode == 'compact') and layout_compact or layout_classic
+  -- choose layout (an active custom view may override the session view mode)
+  local mode = (active_view and active_view.view_mode) or state.view_mode
+  local layout = layout_classic
+  if mode == 'compact' then
+    layout = layout_compact
+  elseif mode == 'tree' then
+    layout = layout_tree
+  end
 
   return function(win_width)
     return layout.build(groups, win_width, cfg, state.marked)

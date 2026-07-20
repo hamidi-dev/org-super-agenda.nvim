@@ -42,7 +42,7 @@ to toggle collapse/expand; on an item line it runs `fold_item_action`
         gI        Jump to active clock task
         D         Toggle allowing duplicates across groups
         zM / zR   Fold all / unfold all groups
-        ov        Switch view mode (classic ↔ compact)
+        ov        Switch view mode (classic → compact → tree)
         V         Open custom view picker
         x / gX    Hide current item / reset hidden list
         R         Refile via Telescope (see |org-super-agenda-refile|)
@@ -372,7 +372,7 @@ filter          Query string (same syntax as |org-super-agenda-query|)
 groups          Override default group structure for this view
 sort            View-level sort fallback (between per-group and global)
 title           Custom window title override
-view_mode       Layout override ('classic' or 'compact')
+view_mode       Layout override ('classic', 'compact' or 'tree')
 
 All fields are optional. A view with just a `filter` is valid.
 
@@ -523,9 +523,10 @@ M.defaults = {
   heading_max_length  = 70,
   persist_hidden      = false,
   fold_item_action    = 'preview',  -- 'preview' or 'goto'
-  view_mode           = 'classic',
+  view_mode           = 'classic', -- 'classic' | 'compact' | 'tree'
   classic             = { heading_order = { 'filename', 'todo', 'priority', 'headline' }, short_date_labels = false, inline_dates = true },
   compact             = { filename_min_width = 10, label_min_width = 12 },
+  tree                = { show_ghost_parents = true },
 
   -- Global fallback sort for groups that don't specify their own `sort`
   group_sort          = { by = 'date_nearest', order = 'asc' },
