@@ -1,8 +1,4 @@
 // .releaserc.js
-// Commits from external contributors (anyone not 'hamidi-dev') get a
-// "thanks @author" suffix automatically in the release notes.
-const MAINTAINER_NAMES = ['mohamed hamidi', 'hamidi-dev']
-
 module.exports = {
   branches: ['main'],
   plugins: [
@@ -37,22 +33,6 @@ module.exports = {
             { type: 'chore', hidden: true },
             { type: 'test', hidden: true },
           ],
-        },
-        gitRawCommitsOpts: {
-          format: '%B%n-hash-%n%H%n-gitTags-%n%d%n-committerDate-%n%ci%n-authorName-%n%an',
-        },
-        writerOpts: {
-          transform: (commit, context) => {
-            if (!commit.type) return commit
-
-            // authorName is injected via the custom gitRawCommitsOpts format
-            const login = commit.authorName || ''
-            if (login && !MAINTAINER_NAMES.includes(login.toLowerCase())) {
-              commit.subject = `${commit.subject} — thanks @${login}`
-            }
-
-            return commit
-          },
         },
       },
     ],

@@ -31,10 +31,10 @@ jobs:
       - name: Install dependencies
         run: |
           npm install -g \
-            semantic-release \
-            @semantic-release/git \
-            @semantic-release/changelog \
-            conventional-changelog-conventionalcommits
+            semantic-release@24.2.9 \
+            @semantic-release/git@10.0.1 \
+            @semantic-release/changelog@6.0.3 \
+            conventional-changelog-conventionalcommits@8.0.0
       
       - name: Release
         env:
