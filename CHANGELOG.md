@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.0](https://github.com/hamidi-dev/org-super-agenda.nvim/compare/v2.0.0...v2.1.0) (2026-08-19)
+
+### Features
+
+* add configurable bulk action prompt mode ([ebac929](https://github.com/hamidi-dev/org-super-agenda.nvim/commit/ebac929ac71ba49aebb2d998903d5c24767a0154))
+* add tree view mode showing task hierarchies ([3e30f63](https://github.com/hamidi-dev/org-super-agenda.nvim/commit/3e30f63ed16272bd240321d61e5383865b491f60))
+* support repeating tasks when marking done ([95abe68](https://github.com/hamidi-dev/org-super-agenda.nvim/commit/95abe68c25127262532f7334b77d281f92fb8af2))
+
+### Bug Fixes
+
+* avoid orgmode temp windows for loaded agenda edits ([161665d](https://github.com/hamidi-dev/org-super-agenda.nvim/commit/161665d55c7b5e6b614791f9b667152de83f4bf7))
+* close window before quit ([f5a78f4](https://github.com/hamidi-dev/org-super-agenda.nvim/commit/f5a78f449f25ab688b993415af200096b594783a))
+* pin compatible release dependencies ([3ebef99](https://github.com/hamidi-dev/org-super-agenda.nvim/commit/3ebef99c555bbfd1a1ba36a706dc4103d5a8c8ba))
+* preserve explicit org file configuration ([800ab62](https://github.com/hamidi-dev/org-super-agenda.nvim/commit/800ab621c204360bd8af14e8de694389f9df1dad))
+* show friendly message for orgmode swap conflicts ([3acadcc](https://github.com/hamidi-dev/org-super-agenda.nvim/commit/3acadccc176c53e9b63c38eb78e516df8ae56b5b))
+* show swap conflict warnings for done state actions ([db58cbc](https://github.com/hamidi-dev/org-super-agenda.nvim/commit/db58cbc1ad8248f32047c82e6b2469a283dc2507))
+* stabilize agenda loading and windows filename rendering ([64e65e5](https://github.com/hamidi-dev/org-super-agenda.nvim/commit/64e65e5756506facf67f718528dbeeb18c1c2d7a))
+
+### Code Refactoring
+
+* use nvim-orgmode's org_agenda_files as single source of truth ([d9efc95](https://github.com/hamidi-dev/org-super-agenda.nvim/commit/d9efc950b14c5e8370fbb1e112e872fe1b6d47a0))
+
 ## [2.0.0](https://github.com/hamidi-dev/org-super-agenda.nvim/compare/v1.1.0...v2.0.0) (2026-03-08)
 
 ### ⚠ BREAKING CHANGE
