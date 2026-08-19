@@ -72,8 +72,12 @@ return {
       -- ... other orgmode config
     })
 
-    -- org-super-agenda will automatically use orgmode's org_agenda_files
+    -- org-super-agenda automatically uses orgmode's org_agenda_files.
+    -- Existing org_files/org_directories overrides remain supported; when
+    -- either is non-empty, they replace org_agenda_files and combine together.
     require('org-super-agenda').setup({
+      org_files           = {}, -- optional explicit file overrides
+      org_directories     = {}, -- optional recursive directory overrides
       -- Optional: exclude specific files or directories from the agenda
       exclude_files       = {},
       exclude_directories = {},

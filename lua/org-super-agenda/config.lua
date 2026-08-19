@@ -2,6 +2,10 @@
 local M = {}
 
 M.defaults = {
+  -- Optional compatibility overrides. When empty, files come from
+  -- nvim-orgmode's org_agenda_files configuration.
+  org_files = {},
+  org_directories = {},
   exclude_files = {},
   exclude_directories = {},
   keymaps = {

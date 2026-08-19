@@ -6,60 +6,113 @@ local Item = require('org-super-agenda.core.item')
 
 local S = {}
 
--- Load all org files directly from nvim-orgmode (respects org_agenda_files)
+local function normalize_path(path)
+  local absolute = vim.fn.fnamemodify(utils.expand(path), ':p')
+  local normalized = vim.fn.resolve(absolute):gsub('\\', '/')
+  if normalized ~= '/' and not normalized:match('^%a:/$') then
+    normalized = normalized:gsub('/+$', '')
+  end
+  return normalized
+end
+
+local function is_in_directory(path, directory)
+  return path == directory or path:sub(1, #directory + 1) == directory .. '/'
+end
+
+local function load_configured_files(C, org_api)
+  local paths = {}
+  local function add(path)
+    if path and path ~= '' then
+      paths[normalize_path(path)] = true
+    end
+  end
+
+  for _, path in ipairs(C.org_files or {}) do
+    add(path)
+  end
+  for _, directory in ipairs(C.org_directories or {}) do
+    for _, path in ipairs(vim.fn.globpath(utils.expand(directory), '**/*.org', false, true)) do
+      add(path)
+    end
+  end
+
+  local files = {}
+  for path in pairs(paths) do
+    local ok, loaded = pcall(org_api.load, path)
+    if ok and loaded then
+      if loaded.filename or loaded._file then
+        files[#files + 1] = loaded
+      elseif vim.islist(loaded) then
+        vim.list_extend(files, loaded)
+      end
+    end
+  end
+  return files
+end
+
+-- Load configured compatibility overrides, or nvim-orgmode's agenda files.
 local function load_org_files()
   local C = cfg()
 
-  local ok_org, orgmode = pcall(require, 'orgmode')
-  if not ok_org or not orgmode or not orgmode.files or not orgmode.files.load_sync then
+  local ok_api, api_root = pcall(require, 'orgmode.api')
+  local org_api = ok_api and (api_root.load and api_root or api_root.org) or nil
+  if not org_api or not org_api.load then
     error('nvim-orgmode is required but not found. Please install nvim-orgmode/orgmode')
   end
 
-  -- Ensure orgmode has fully loaded agenda files before reading them.
-  -- Without this, orgmode.api.load() can return an empty/partial list on first open.
-  pcall(function()
-    orgmode.files:load_sync(false, 20000)
-  end)
+  local all_files
+  if #(C.org_files or {}) > 0 or #(C.org_directories or {}) > 0 then
+    all_files = load_configured_files(C, org_api)
+  else
+    local ok_org, orgmode = pcall(require, 'orgmode')
+    if not ok_org or not orgmode or not orgmode.files or not orgmode.files.load_sync then
+      error('nvim-orgmode is required but not found. Please install nvim-orgmode/orgmode')
+    end
 
-  local ok_api, org_api = pcall(require, 'orgmode.api')
-  if not ok_api or not org_api or not org_api.load then
-    error('nvim-orgmode is required but not found. Please install nvim-orgmode/orgmode')
-  end
+    -- Ensure orgmode has fully loaded agenda files before reading them.
+    -- Without this, orgmode.api.load() can return an empty/partial list on first open.
+    pcall(function()
+      orgmode.files:load_sync(false, 20000)
+    end)
 
-  -- orgmode.api.load() with no args returns all agenda files already resolved
-  local ok, all_files = pcall(org_api.load)
-  if not ok or not all_files then
-    return {}
+    -- orgmode.api.load() with no args returns all agenda files already resolved.
+    local ok, loaded = pcall(org_api.load)
+    if not ok or not loaded then
+      return {}
+    end
+    all_files = loaded
   end
 
   -- Build exclusion set
   local skip = {}
   for _, f in ipairs(C.exclude_files or {}) do
     if f and f ~= '' then
-      skip[utils.expand(f)] = true
+      skip[normalize_path(f)] = true
     end
   end
   local skip_dirs = {}
   for _, d in ipairs(C.exclude_directories or {}) do
     if d and d ~= '' then
-      skip_dirs[#skip_dirs + 1] = utils.expand(d)
+      skip_dirs[#skip_dirs + 1] = normalize_path(d)
     end
   end
 
   local files = {}
   for _, f in ipairs(all_files) do
     local path = f.filename or (f._file and f._file.filename)
-    if path and not skip[path] then
+    local normalized_path = path and normalize_path(path) or nil
+    if normalized_path and not skip[normalized_path] then
       local excluded = false
       for _, d in ipairs(skip_dirs) do
-        if path:find('^' .. vim.pesc(d)) then
+        if is_in_directory(normalized_path, d) then
           excluded = true
           break
         end
       end
       if not excluded then
         if f.reload then
-          files[#files + 1] = f:reload()
+          local reloaded = f:reload()
+          files[#files + 1] = reloaded or f
         else
           files[#files + 1] = f
         end
