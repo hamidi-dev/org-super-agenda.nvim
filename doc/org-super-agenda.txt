@@ -67,9 +67,13 @@ require('orgmode').setup({
 })
 ```
 
-org-super-agenda will automatically use orgmode's org_agenda_files:
+org-super-agenda automatically uses orgmode's org_agenda_files. Existing
+org_files/org_directories overrides remain supported. If either override is
+non-empty, both are combined and used instead of org_agenda_files:
 ```
 require('org-super-agenda').setup({
+  org_files           = {},        -- optional explicit file overrides
+  org_directories     = {},        -- optional recursive directory overrides
   exclude_files       = {},        -- optional: files to ignore
   exclude_directories = {},        -- optional: directories to ignore
   -- additional options are documented below and in the source
@@ -405,6 +409,8 @@ The defaults (see |lua/org-super-agenda/config.lua|) are:
 
 >
 M.defaults = {
+  org_files           = {}, -- optional; overrides org_agenda_files when set
+  org_directories     = {}, -- optional; overrides org_agenda_files when set
   exclude_files       = {},
   exclude_directories = {},
   keymaps             = {
