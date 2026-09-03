@@ -23,4 +23,12 @@ describe('config.setup', function()
     assert.equals('gI', cfg.keymaps.clock_goto)
     assert.equals('gX', cfg.keymaps.reset_hidden)
   end)
+
+  it('ships unique keymap defaults', function()
+    local seen = {}
+    for action, keymap in pairs(defaults.keymaps) do
+      assert.is_nil(seen[keymap], string.format('%s and %s both use %s', seen[keymap], action, keymap))
+      seen[keymap] = action
+    end
+  end)
 end)
