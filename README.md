@@ -119,7 +119,7 @@ return {
         bulk_mark         = 'm',  -- toggle mark on current item (● indicator)
         bulk_unmark_all   = 'M',  -- clear all marks
         bulk_reselect     = 'gv', -- reselect last marks
-        bulk_action       = 'B',  -- run action on all marked items
+        bulk_action       = 'b',  -- run action on all marked items
         open_view         = 'V',  -- open custom view picker
       },
 
@@ -307,9 +307,9 @@ Mark multiple items and apply an operation to all of them at once.
 | `m` | Toggle mark on current item (shows `●` indicator) |
 | `M` | Clear all marks |
 | `gv` | Reselect last marks (like vim `gv` for visual) |
-| `B` | Open bulk action menu for all marked items |
+| `b` | Open bulk action menu for all marked items |
 
-After pressing `B`, choose an action:
+After pressing `b`, choose an action:
 
 | Key | Bulk Action |
 |-----|------------|
@@ -319,7 +319,7 @@ After pressing `B`, choose an action:
 
 **Example workflow:**
 1. `m` on several overdue tasks
-2. `B` → `r` → pick new date → all rescheduled at once
+2. `b` → `r` → pick new date → all rescheduled at once
 
 All bulk operations are undoable individually via `u`.
 
