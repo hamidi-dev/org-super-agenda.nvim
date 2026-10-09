@@ -4,7 +4,7 @@ local Store = require('org-super-agenda.app.store')
 local Pipeline = require('org-super-agenda.app.pipeline')
 local Services = require('org-super-agenda.app.services')
 
-local SourcePort = require('org-super-agenda.adapters.neovim.source_orgmode')
+local SourcePort = require('org-super-agenda.adapters.neovim.backend').source
 local ViewPort = require('org-super-agenda.adapters.neovim.view_float')
 
 local M = {}

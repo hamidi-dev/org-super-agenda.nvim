@@ -2,8 +2,11 @@
 local M = {}
 
 M.defaults = {
-  -- Optional compatibility overrides. When empty, files come from
-  -- nvim-orgmode's org_agenda_files configuration.
+  -- Org engine: 'auto' (nvim-orgmode when installed, else org.nvim),
+  -- 'orgmode' (nvim-orgmode/orgmode) or 'org.nvim' (xheisenbugx/org.nvim).
+  backend = 'auto',
+  -- Optional compatibility overrides. When empty, files come from the
+  -- backend's agenda files (org_agenda_files / agenda_files).
   org_files = {},
   org_directories = {},
   exclude_files = {},

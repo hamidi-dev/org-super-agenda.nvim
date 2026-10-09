@@ -36,7 +36,8 @@ A Neovim plugin inspired by [org-super-agenda](https://github.com/alphapapa/org-
 * **Right‑aligned tags**, customizable header format, and filename display
 * **Safety**: refuses edits when a swapfile is present or buffer is modified elsewhere
 * **Sticky DONE**: items marked DONE during the session remain visible until you close the window
-* **Repeat tasks**: repeating TODOs follow nvim-orgmode behavior when marked done (advance repeater dates, reset state, preserve repeat metadata)
+* **Repeat tasks**: repeating TODOs follow the org engine's behavior when marked done (advance repeater dates, reset state, preserve repeat metadata)
+* **Two org engines**: works on [nvim-orgmode](https://github.com/nvim-orgmode/orgmode) or [org.nvim](https://github.com/xheisenbugx/org.nvim)
 
 ---
 
@@ -58,11 +59,14 @@ vim.keymap.set('n', '<leader>oA', '<cmd>OrgSuperAgenda!<cr>') -- fullscreen
 
 ## 📦 Installation (lazy.nvim)
 
+org-super-agenda needs one org engine: **nvim-orgmode** or **org.nvim** (see
+[Backends](#-backends-nvim-orgmode-or-orgnvim)). With nvim-orgmode:
+
 ```lua
 return {
   'hamidi-dev/org-super-agenda.nvim',
   dependencies = {
-    'nvim-orgmode/orgmode', -- required
+    'nvim-orgmode/orgmode', -- or 'xheisenbugx/org.nvim'
     { 'lukas-reineke/headlines.nvim', config = true }, -- optional nicety
   },
   config = function()
@@ -508,6 +512,40 @@ popup_mode = {
   hide_command = "my-hide-cmd",   -- anything that dismisses your popup
 }
 ```
+
+---
+
+## 🔌 Backends (nvim-orgmode or org.nvim)
+
+The agenda reads and edits your files through an org engine, picked by
+`backend`:
+
+* `'auto'` (default): nvim-orgmode when it is installed, otherwise org.nvim
+* `'orgmode'`: [nvim-orgmode/orgmode](https://github.com/nvim-orgmode/orgmode)
+* `'org.nvim'`: [xheisenbugx/org.nvim](https://github.com/xheisenbugx/org.nvim) (public API 1.0 or newer)
+
+With org.nvim, the agenda uses its `agenda_files`, and TODO changes, repeaters,
+priorities, dates, the calendar and clocking all run through org.nvim's own
+commands, with its logging and save hooks:
+
+```lua
+return {
+  'hamidi-dev/org-super-agenda.nvim',
+  dependencies = { 'xheisenbugx/org.nvim' },
+  config = function()
+    require('org').setup({
+      agenda_files = { '~/org/**/*.org' },
+      todo_keywords = { 'TODO', 'PROGRESS', 'WAITING', '|', 'DONE' },
+    })
+    require('org-super-agenda').setup({ backend = 'org.nvim' })
+  end,
+}
+```
+
+If you have both installed, set `backend = 'org.nvim'` to use org.nvim;
+`'auto'` keeps nvim-orgmode. The `todo_states` you configure here should match
+the engine's TODO keywords. Property names in `properties` are lower-cased with
+either backend, so group matchers work unchanged.
 
 ---
 
