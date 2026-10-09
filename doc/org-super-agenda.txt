@@ -2,8 +2,9 @@
 
 org-super-agenda                                              *org-super-agenda*
 
-This plugin organizes your orgmode agenda in a floating window using
-custom groups. It is inspired by the Emacs plugin org-super-agenda.
+This plugin organizes your org agenda in a floating window using custom
+groups. It is inspired by the Emacs plugin org-super-agenda. It runs on
+nvim-orgmode or org.nvim, see |org-super-agenda-backends|.
 
 ===============================================================================
 USAGE                                                           *org-super-agenda-usage*
@@ -409,6 +410,7 @@ The defaults (see |lua/org-super-agenda/config.lua|) are:
 
 >
 M.defaults = {
+  backend             = 'auto', -- 'auto' | 'orgmode' | 'org.nvim'
   org_files           = {}, -- optional; overrides org_agenda_files when set
   org_directories     = {}, -- optional; overrides org_agenda_files when set
   exclude_files       = {},
@@ -573,12 +575,35 @@ closing the agenda buffer. You can bind a tmux key to show/hide the popup
 session for quick agenda access.
 
 ===============================================================================
+BACKENDS                                                *org-super-agenda-backends*
+
+The agenda reads and edits files through an org engine, chosen by `backend`:
+
+* `'auto'`      nvim-orgmode when installed, otherwise org.nvim (default)
+* `'orgmode'`   nvim-orgmode/orgmode
+* `'org.nvim'`  xheisenbugx/org.nvim (public API |org-api| 1.0 or newer)
+
+With org.nvim, files come from its `agenda_files` (or the `org_files` /
+`org_directories` overrides), and TODO changes, repeaters, priorities,
+dates, the calendar and clocking run through org.nvim with its logging and
+save hooks:
+```
+require('org').setup({
+  agenda_files = { '~/org/**/*.org' },
+  todo_keywords = { 'TODO', 'PROGRESS', 'WAITING', '|', 'DONE' },
+})
+require('org-super-agenda').setup({ backend = 'org.nvim' })
+```
+With both engines installed, `'auto'` keeps nvim-orgmode. Item property
+names are lower-cased with either backend.
+
+===============================================================================
 SAFETY NOTES                                                  *org-super-agenda-safety*
 
 * Refuses edits if buffer is modified in Neovim or a swapfile is detected
 * DONE items set during the session remain visible in a dedicated group
   until the agenda window is closed ("sticky DONE")
-* Repeating TODOs follow nvim-orgmode behavior when marked done:
+* Repeating TODOs follow the org engine's behavior when marked done:
   repeater dates advance, todo state resets, and repeat metadata is preserved
 * The catch‑all "Other" group never collects DONE items
 

@@ -3,142 +3,20 @@ local utils = require('org-super-agenda.adapters.neovim.utils')
 local config = require('org-super-agenda.config')
 local Services = require('org-super-agenda.app.services')
 local Store = require('org-super-agenda.app.store')
+local guard = require('org-super-agenda.adapters.neovim.guard')
+local backend = require('org-super-agenda.adapters.neovim.backend').get
 local A = {}
 local function get_cfg()
   return config.get()
 end
 
-local function key_for_hl(hl)
-  local fname = (hl.file and hl.file.filename) or hl.filename or ''
-  return string.format('%s:%s', fname, hl.position and hl.position.start_line or 0)
+local function key_for_hl(h)
+  return string.format('%s:%s', h.file or '', h.line or 0)
 end
 
-local function get_org_clock()
-  local ok_org, org = pcall(require, 'orgmode')
-  if not ok_org or type(org.instance) ~= 'function' then
-    return nil, 'orgmode not available'
-  end
-  local ok_inst, inst = pcall(org.instance)
-  if not ok_inst or not inst or not inst.clock then
-    return nil, 'orgmode clock is unavailable'
-  end
-  return inst.clock
-end
+local is_swap_error, has_swap_for, buf_status_for = guard.is_swap_error, guard.has_swap_for, guard.buf_status_for
 
-local function clock_in_headline(hl)
-  local _, err = get_org_clock()
-  if err then
-    return nil, err
-  end
-
-  if type(hl._do_action) ~= 'function' then
-    return nil, 'Selected headline does not support clock actions'
-  end
-
-  return hl:_do_action(function()
-    local org = require('orgmode')
-    local clock = org.instance().clock
-    clock:org_clock_in()
-  end)
-end
-
-local function clock_out_active()
-  local clock, err = get_org_clock()
-  if not clock then
-    return nil, err
-  end
-  local org = require('orgmode')
-  clock:update_clocked_headline()
-  local active = clock.clocked_headline
-  if not (active and active.is_clocked_in and active:is_clocked_in()) then
-    active = org.instance().files:get_clocked_headline()
-  end
-  if not (active and active.is_clocked_in and active:is_clocked_in()) then
-    return nil
-  end
-  return active.file:update(function()
-    local reloaded = active.file:reload_sync():get_closest_headline({ active:get_range().start_line, 0 })
-    reloaded:clock_out()
-    clock.clocked_headline = nil
-  end)
-end
-
-local function clock_cancel_active()
-  local clock, err = get_org_clock()
-  if not clock then
-    return nil, err
-  end
-  local org = require('orgmode')
-  clock:update_clocked_headline()
-  local active = clock.clocked_headline
-  if not (active and active.is_clocked_in and active:is_clocked_in()) then
-    active = org.instance().files:get_clocked_headline()
-  end
-  if not (active and active.is_clocked_in and active:is_clocked_in()) then
-    return nil
-  end
-  return active.file:update(function()
-    local reloaded = active.file:reload_sync():get_closest_headline({ active:get_range().start_line, 0 })
-    reloaded:cancel_active_clock()
-    clock.clocked_headline = nil
-  end)
-end
-
-local function clock_goto_active()
-  local clock, err = get_org_clock()
-  if not clock then
-    return false, err
-  end
-  local before = vim.api.nvim_get_current_buf()
-  clock:org_clock_goto()
-  local after = vim.api.nvim_get_current_buf()
-  return before ~= after, nil
-end
-
--- === helpers: swap detection, buffer status, snapshots, safe writes ===
-local function is_swap_error(err)
-  local s = tostring(err or '')
-  return s:find('Vim:E325', 1, true) ~= nil or s:find('E325:', 1, true) ~= nil
-end
-
-local function swap_glob_candidates(path)
-  local abs = vim.fn.fnamemodify(path, ':p')
-  local base = vim.fn.fnamemodify(abs, ':t')
-  local candidates = {}
-
-  local dir_entries = vim.opt.directory:get()
-  if type(dir_entries) ~= 'table' then
-    dir_entries = vim.split(vim.o.directory or '', ',', { plain = true, trimempty = true })
-  end
-
-  for _, entry in ipairs(dir_entries or {}) do
-    if entry and entry ~= '' and entry ~= '.' then
-      local expanded = vim.fn.expand(entry)
-      if expanded:sub(-2) == '//' then
-        local root = expanded:gsub('/+$', '')
-        local mangled = abs:gsub('[:/\\]', '%%')
-        candidates[#candidates + 1] = root .. '/' .. mangled .. '.sw?'
-      else
-        local root = expanded:gsub('/+$', '')
-        candidates[#candidates + 1] = root .. '/.' .. vim.fn.escape(base, '[]^$\\.*') .. '.*.sw?'
-      end
-    end
-  end
-
-  local local_dir = vim.fn.fnamemodify(abs, ':h')
-  candidates[#candidates + 1] = local_dir .. '/.' .. vim.fn.escape(base, '[]^$\\.*') .. '.*.sw?'
-  return candidates
-end
-
-local function has_swap_for(path)
-  for _, patt in ipairs(swap_glob_candidates(path)) do
-    if patt and patt ~= '' and vim.fn.glob(patt) ~= '' then
-      return true
-    end
-  end
-  return false
-end
-
+-- === helpers: notifications, snapshots, safe writes ===
 local function notify_swap_conflict(path, action)
   local short = vim.fn.fnamemodify(path or '', ':~:.')
   local msg = string.format('%s blocked: swap-file conflict (E325) for %s. Resolve the swap/recovery prompt and try again.', action, short)
@@ -160,47 +38,10 @@ local function notify_action_error(action, err, path)
   vim.notify(tostring(err), vim.log.levels.WARN, { title = 'org-super-agenda' })
 end
 
-local function buf_status_for(path)
-  local bufnr = vim.fn.bufnr(path)
-  if bufnr == -1 then
-    return { bufnr = -1, loaded = false, modified = false }
-  end
-  local loaded = vim.api.nvim_buf_is_loaded(bufnr)
-  local modified = loaded and vim.api.nvim_buf_get_option(bufnr, 'modified') or false
-  return { bufnr = bufnr, loaded = loaded, modified = modified }
-end
-
 -- Snapshot/restore utilities
-local function snapshot_heading_from_buf(hl)
-  local fname = (hl.file and hl.file.filename) or hl.filename
-  local bufnr = vim.fn.bufnr(fname)
-  if bufnr == -1 then
-    bufnr = vim.fn.bufadd(fname)
-  end
-  if not vim.api.nvim_buf_is_loaded(bufnr) then
-    vim.fn.bufload(bufnr)
-  end
-  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-  local start = hl.position.start_line
-  while start > 1 and not lines[start]:match('^%*+') do
-    start = start - 1
-  end
-  local lvl = #(lines[start]:match('^(%*+)'))
-  local stop = #lines
-  for i = start + 1, #lines do
-    local s = lines[i]:match('^(%*+)')
-    if s and #s <= lvl then
-      stop = i - 1
-      break
-    end
-  end
-  return {
-    bufnr = bufnr,
-    start = start,
-    stop = stop,
-    seg = vim.list_slice(lines, start, stop),
-    mode = 'buffer',
-  }
+local function heading_level(line)
+  local stars = (line or ''):match('^(%*+)%s')
+  return stars and #stars or nil
 end
 
 local function heading_range_in_file(all_lines, pos_start)
@@ -223,34 +64,134 @@ local function heading_range_in_file(all_lines, pos_start)
   return start, stop
 end
 
-local function snapshot_heading_from_disk(path, pos_start)
-  local lines = vim.fn.readfile(path)
-  local s, e = heading_range_in_file(lines, pos_start)
+-- The outermost ancestor's subtree: a change can also touch ancestors (statistics cookies)
+local function tree_range(lines, pos_start)
+  local start = math.min(pos_start, #lines)
+  while start > 0 and not heading_level(lines[start]) do
+    start = start - 1
+  end
+  if start == 0 then
+    return nil
+  end
+  local lvl = heading_level(lines[start])
+  for i = start - 1, 1, -1 do
+    local l = heading_level(lines[i])
+    if l and l < lvl then
+      start, lvl = i, l
+      if l == 1 then
+        break
+      end
+    end
+  end
+  local _, stop = heading_range_in_file(lines, start)
+  return start, stop
+end
+
+local function make_snapshot(lines, pos_start)
+  local s, e = tree_range(lines, pos_start)
   if not s then
-    -- fallback: single-line snapshot only
     s, e = pos_start, pos_start
   end
-  return {
-    path = path,
-    start = s,
-    stop = e,
-    seg = vim.list_slice(lines, s, e),
-    mode = 'file',
-  }
+  return { start = s, stop = e, seg = vim.list_slice(lines, s, e) }
+end
+
+local function snapshot_heading_from_buf(hl)
+  local bufnr = vim.fn.bufnr(hl.file)
+  if bufnr == -1 then
+    bufnr = vim.fn.bufadd(hl.file)
+  end
+  if not vim.api.nvim_buf_is_loaded(bufnr) then
+    vim.fn.bufload(bufnr)
+  end
+  local snap = make_snapshot(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), hl.line)
+  snap.bufnr, snap.mode = bufnr, 'buffer'
+  return snap
+end
+
+local function snapshot_heading_from_disk(path, pos_start)
+  local snap = make_snapshot(vim.fn.readfile(path), pos_start)
+  snap.path, snap.mode = path, 'file'
+  return snap
+end
+
+local function snapshot_lines(snap)
+  if snap.mode == 'buffer' then
+    return vim.api.nvim_buf_is_valid(snap.bufnr) and vim.api.nvim_buf_get_lines(snap.bufnr, 0, -1, false) or {}
+  end
+  return vim.fn.filereadable(snap.path) == 1 and vim.fn.readfile(snap.path) or {}
+end
+
+local function region_stop(lines, start)
+  if start > #lines or not heading_level(lines[start]) then
+    return nil
+  end
+  local _, stop = heading_range_in_file(lines, start)
+  return stop
+end
+
+-- Record the region as the action left it; undo only restores while it still
+-- looks exactly like this, so later edits (saved or not) are never reverted.
+local function seal(snap)
+  if snap.post then
+    return
+  end
+  local lines = snapshot_lines(snap)
+  local stop = region_stop(lines, snap.start)
+  snap.post = stop and vim.list_slice(lines, snap.start, stop) or {}
+end
+
+-- Where the region ends now, or nil when it changed since the action (or the
+-- action never completed: an unsealed snapshot is never restored)
+local function restore_stop(lines, snap)
+  if not snap.post then
+    return nil
+  end
+  local stop = region_stop(lines, snap.start)
+  if not stop or stop - snap.start + 1 ~= #snap.post then
+    return nil
+  end
+  for i, l in ipairs(snap.post) do
+    if lines[snap.start + i - 1] ~= l then
+      return nil
+    end
+  end
+  return stop
+end
+
+local function notify_undo_skipped(path, why)
+  local short = vim.fn.fnamemodify(path or '', ':~:.')
+  vim.notify(string.format('Undo skipped: %s %s.', short, why), vim.log.levels.WARN, { title = 'org-super-agenda' })
+end
+
+-- Undo never writes a buffer's unsaved edits
+local function has_unsaved_edits(path)
+  return buf_status_for(path).modified
 end
 
 local function make_restore_from_snapshot(snap)
   if snap.mode == 'buffer' then
     return function()
-      vim.api.nvim_buf_set_lines(snap.bufnr, snap.start - 1, snap.stop, false, snap.seg)
-      vim.api.nvim_buf_call(snap.bufnr, function()
-        vim.cmd('silent noautocmd write')
-      end)
+      local path = vim.api.nvim_buf_get_name(snap.bufnr)
+      if vim.bo[snap.bufnr].modified then
+        return notify_undo_skipped(path, 'has unsaved changes')
+      end
+      local stop = restore_stop(vim.api.nvim_buf_get_lines(snap.bufnr, 0, -1, false), snap)
+      if not stop then
+        return notify_undo_skipped(path, 'changed since')
+      end
+      vim.api.nvim_buf_set_lines(snap.bufnr, snap.start - 1, stop, false, snap.seg)
+      backend().save_buffer(snap.bufnr)
     end
   else
     return function()
+      if has_unsaved_edits(snap.path) then
+        return notify_undo_skipped(snap.path, 'has unsaved changes')
+      end
       local before = vim.fn.readfile(snap.path)
-      -- splice original segment back
+      local stop = restore_stop(before, snap)
+      if not stop then
+        return notify_undo_skipped(snap.path, 'changed since')
+      end
       local out = {}
       for i = 1, snap.start - 1 do
         out[#out + 1] = before[i]
@@ -258,10 +199,16 @@ local function make_restore_from_snapshot(snap)
       for _, l in ipairs(snap.seg) do
         out[#out + 1] = l
       end
-      for i = snap.stop + 1, #before do
+      for i = stop + 1, #before do
         out[#out + 1] = before[i]
       end
       vim.fn.writefile(out, snap.path)
+      local bufnr = vim.fn.bufnr(snap.path)
+      if bufnr ~= -1 and vim.api.nvim_buf_is_loaded(bufnr) then
+        vim.api.nvim_buf_call(bufnr, function()
+          vim.cmd('silent noautocmd edit')
+        end)
+      end
     end
   end
 end
@@ -305,7 +252,7 @@ local function upsert_planning_line(lines, headline_lnum, keyword, value)
   end
 
   -- 3) keyword not present yet → append to existing planning line or create one
-  --    orgmode.nvim only recognises planning when all keywords are on ONE line
+  --    org parsers only recognise planning when all keywords are on ONE line
   for i = s + 1, e do
     local l = lines[i] or ''
     if l:match('^%*+') then
@@ -321,245 +268,6 @@ local function upsert_planning_line(lines, headline_lnum, keyword, value)
   return true
 end
 
-local function compute_cycled_line(line, next_state)
-  -- Accept either "* TODO foo" or "* foo"
-  local stars, cur_state, rest = line:match('^(%*+)%s+([A-Z]+)%s+(.*)$')
-  if not stars then
-    stars, rest = line:match('^(%*+)%s+(.*)$')
-  end
-  if not stars then
-    return nil
-  end
-  if next_state == '' then
-    return (stars .. ' ' .. rest)
-  else
-    return (stars .. ' ' .. next_state .. ' ' .. rest)
-  end
-end
-
-local function safe_set_heading_state(hl, next_state)
-  local path = (hl.file and hl.file.filename) or hl.filename
-  local lnum = (hl.position and hl.position.start_line or 1)
-  if lnum < 1 then
-    return false, 'Invalid headline position'
-  end
-
-  local st = buf_status_for(path)
-
-  -- If buffer is loaded here and modified, refuse.
-  if st.loaded and st.modified then
-    return false, 'File is open and modified in this Neovim; aborting to avoid data loss.'
-  end
-
-  -- If not loaded and a swap exists, very likely open elsewhere: refuse.
-  if (not st.loaded) and has_swap_for(path) then
-    return false, 'Detected a swap file for this path (likely open in another Vim). Refusing to edit.'
-  end
-
-  -- Build new line content
-  local new_line
-
-  if st.loaded then
-    -- buffer path (unmodified)
-    local old = vim.api.nvim_buf_get_lines(st.bufnr, lnum - 1, lnum, false)[1]
-    if not old then
-      return false, 'Could not read current line'
-    end
-    new_line = compute_cycled_line(old, next_state)
-    if not new_line then
-      return false, 'Not a valid org headline line'
-    end
-    vim.api.nvim_buf_set_lines(st.bufnr, lnum - 1, lnum, false, { new_line })
-    vim.api.nvim_buf_call(st.bufnr, function()
-      vim.cmd('silent noautocmd write')
-    end)
-    return true
-  else
-    -- on-disk edit
-    local lines = vim.fn.readfile(path)
-    local old = lines[lnum]
-    if not old then
-      return false, 'Could not read current line on disk'
-    end
-    new_line = compute_cycled_line(old, next_state)
-    if not new_line then
-      return false, 'Not a valid org headline line'
-    end
-    lines[lnum] = new_line
-    vim.fn.writefile(lines, path)
-    return true
-  end
-end
-
-local function get_headline_todo_keywords(hl)
-  local section = hl and hl._section
-  local file = section and section.file
-  if not (file and file.get_todo_keywords) then
-    return nil
-  end
-  return file:get_todo_keywords()
-end
-
-local function should_use_orgmode_state_transition(hl, next_state)
-  if not hl or next_state == '' then
-    return false
-  end
-
-  local todos = get_headline_todo_keywords(hl)
-  if not todos then
-    return false
-  end
-
-  local current_value = hl.todo_value or (hl._section and hl._section:get_todo()) or ''
-  local current_kw = current_value ~= '' and todos:find(current_value) or nil
-  local target_kw = todos:find(next_state)
-
-  if not current_kw or not target_kw then
-    return false
-  end
-
-  return current_kw.sequence_index == target_kw.sequence_index and current_kw.type ~= target_kw.type
-end
-
-local function apply_heading_state_via_orgmode(hl, next_state)
-  local todos = get_headline_todo_keywords(hl)
-  local path = (hl.file and hl.file.filename) or hl.filename
-  local start_line = hl.position and hl.position.start_line or 1
-  local current_value = hl.todo_value or (hl._section and hl._section:get_todo()) or ''
-  local current_kw = current_value ~= '' and todos and todos:find(current_value) or nil
-  local target_kw = todos and todos:find(next_state) or nil
-
-  if not todos or not current_kw or not target_kw then
-    return false, 'Could not resolve orgmode todo state transition'
-  end
-
-  local st = buf_status_for(path)
-  if st.loaded and st.modified then
-    return false, 'File is open and modified in this Neovim; aborting to avoid data loss.'
-  end
-  if (not st.loaded) and has_swap_for(path) then
-    return false, { kind = 'swap_conflict', path = path }
-  end
-
-  local function run_transition()
-    local org = require('orgmode')
-    local instance = org.instance()
-    local mappings = instance and instance.org_mappings
-    local current = instance and instance.files and instance.files:get_closest_headline()
-    if not current then
-      error('orgmode todo transition engine is unavailable', 0)
-    end
-
-    local old_state = current:get_todo()
-    local was_done = current:is_done()
-    current:set_todo(next_state)
-
-    local item = instance.files:get_closest_headline()
-    local is_done = item:is_done() and not was_done
-    local is_undone = not item:is_done() and was_done
-
-    if not is_done and not is_undone then
-      return true
-    end
-
-    local org_config = require('orgmode.config')
-    local Date = require('orgmode.objects.date')
-    local TodoState = require('orgmode.objects.todo_state')
-    local repeater_dates = item:get_repeater_dates()
-
-    if #repeater_dates == 0 then
-      local log_closed_time = org_config.org_log_done == 'time'
-      if log_closed_time then
-        if is_done then
-          item:set_closed_date()
-        elseif is_undone then
-          item:remove_closed_date()
-        end
-      end
-      return true
-    end
-
-    if not (mappings and mappings._replace_date) then
-      error('orgmode repeater engine is unavailable', 0)
-    end
-
-    for _, date in ipairs(repeater_dates) do
-      mappings:_replace_date(date:apply_repeater())
-    end
-
-    item = instance.files:get_closest_headline()
-    local new_todo = item:get_todo()
-    local todo_state = TodoState:new({ current_state = new_todo, todos = item.file:get_todo_keywords() })
-    local reset_keyword = todo_state:get_reset_todo(item, old_state)
-    item:set_todo(reset_keyword.value)
-
-    local log_repeat_enabled = org_config.org_log_repeat ~= false
-    local prompt_repeat_note = org_config.org_log_repeat == 'note'
-    local prompt_done_note = org_config.org_log_done == 'note'
-    if log_repeat_enabled then
-      item:set_property('LAST_REPEAT', Date.now():to_wrapped_string(false))
-      if not prompt_repeat_note and not prompt_done_note then
-        local indent = item:get_indent()
-        local repeat_note_template = ('%s- State %-12s from %-12s [%s]'):format(
-          indent,
-          [["]] .. (new_todo or '') .. [["]],
-          [["]] .. (old_state or '') .. [["]],
-          Date.now():to_string()
-        )
-        item:add_note({ repeat_note_template })
-      end
-    end
-
-    return true
-  end
-
-  local ok, result = pcall(function()
-    if st.loaded then
-      return vim.api.nvim_buf_call(st.bufnr, function()
-        local view = vim.fn.winsaveview() or {}
-        vim.fn.cursor({ start_line, 1 })
-        run_transition()
-        vim.cmd('silent noautocmd write')
-        vim.fn.winrestview(view)
-        local ok_reload, reloaded = pcall(function()
-          return hl:reload()
-        end)
-        return ok_reload and reloaded or hl
-      end)
-    end
-
-    return hl:_do_action(function()
-      return run_transition()
-    end):wait(20000)
-  end)
-
-  if not ok then
-    return false, tostring(result)
-  end
-
-  return true, result
-end
-
-local function apply_heading_state(hl, next_state)
-  if should_use_orgmode_state_transition(hl, next_state) then
-    return apply_heading_state_via_orgmode(hl, next_state)
-  end
-
-  local ok, err = safe_set_heading_state(hl, next_state)
-  if not ok then
-    return false, err
-  end
-
-  local reload_ok, reloaded = pcall(function()
-    return hl:reload()
-  end)
-  if reload_ok and reloaded then
-    return true, reloaded
-  end
-
-  return true, hl
-end
-
 -- === headline toolbelt ===
 local function with_headline(line_map, cb)
   local cur = vim.api.nvim_win_get_cursor(0)
@@ -568,19 +276,11 @@ local function with_headline(line_map, cb)
     vim.notify('No entry under cursor', vim.log.levels.WARN)
     return
   end
-  local ok, api_root = pcall(require, 'orgmode.api')
+  local ok, hl = pcall(backend().headline, it.file, it._src_line)
   if not ok then
+    vim.notify(tostring(hl), vim.log.levels.WARN, { title = 'org-super-agenda' })
     return
   end
-  local org_api = api_root.load and api_root or api_root.org
-  local file = org_api.load(it.file)
-  if vim.islist(file) then
-    file = file[1]
-  end
-  if not (file and file.get_headline_on_line) then
-    return
-  end
-  local hl = file:get_headline_on_line(it._src_line)
   if not hl then
     return
   end
@@ -589,19 +289,7 @@ end
 
 local function preview_headline(line_map)
   with_headline(line_map, function(_, hl)
-    local lines = {}
-    if hl._section and hl._section.get_lines then
-      lines = hl._section:get_lines()
-    elseif hl.position and hl.position.start_line and hl.position.end_line then
-      local bufnr = vim.fn.bufnr(hl.file.filename)
-      if bufnr == -1 then
-        bufnr = vim.fn.bufadd(hl.file.filename)
-      end
-      if not vim.api.nvim_buf_is_loaded(bufnr) then
-        vim.fn.bufload(bufnr)
-      end
-      lines = vim.api.nvim_buf_get_lines(bufnr, hl.position.start_line - 1, hl.position.end_line, false)
-    end
+    local lines = backend().section_lines(hl) or {}
     if #lines == 0 then
       return
     end
@@ -640,11 +328,25 @@ local function toggle_group_on_cursor(line_map)
   return true
 end
 
+-- Each action seals its own snapshot once its change is complete
 local function apply_with_undo_snapshot(cur, snap, op_fn)
   Store.push_undo(make_restore_from_snapshot(snap))
-  local p = op_fn()
+  local ok, p = pcall(op_fn)
+  if not ok then
+    seal(snap)
+    vim.notify(tostring(p), vim.log.levels.WARN, { title = 'org-super-agenda' })
+    return
+  end
+  local async = p and type(p.next) == 'function'
+  if async then
+    p:next(function()
+      seal(snap)
+    end)
+  else
+    seal(snap)
+  end
   vim.defer_fn(function()
-    if p and type(p.next) == 'function' then
+    if async then
       p:next(function()
         Services.agenda.refresh(cur)
       end)
@@ -676,18 +378,19 @@ end
 
 local function set_state_for_headline(line_map, next_state)
   with_headline(line_map, function(cur, hl)
-    local st = buf_status_for(hl.file.filename)
-    local snap = st.loaded and snapshot_heading_from_buf(hl) or snapshot_heading_from_disk(hl.file.filename, hl.position.start_line)
+    local st = buf_status_for(hl.file)
+    local snap = st.loaded and snapshot_heading_from_buf(hl) or snapshot_heading_from_disk(hl.file, hl.line)
     Store.push_undo(make_restore_from_snapshot(snap))
 
-    local success, updated = apply_heading_state(hl, next_state)
+    local success, updated = backend().set_state(hl, next_state)
+    seal(snap)
     if not success then
-      notify_action_error('Set state', updated, hl.file and hl.file.filename)
+      notify_action_error('Set state', updated, hl.file)
       return
     end
 
     local key = key_for_hl(updated)
-    if updated.todo_type == 'DONE' then
+    if updated.done then
       Store.sticky_add(key)
     else
       Store.sticky_remove(key)
@@ -753,72 +456,54 @@ local function remove_planning_keyword(line, keyword)
   return stripped
 end
 
-local function hl_filename(hl)
-  return (hl.file and hl.file.filename) or hl.filename
+local function resolve_headline(it)
+  local ok, hl = pcall(backend().headline, it.file, it._src_line)
+  return ok and hl or nil
 end
 
-local function hl_start_line(hl)
-  return hl.position and hl.position.start_line
+-- Bulk changes run top-down; each one can add lines (CLOSED, SCHEDULED, a
+-- LOGBOOK note) and shift the targets below it in the same file.
+local function line_count(path)
+  local b = vim.fn.bufnr(path)
+  if b ~= -1 and vim.api.nvim_buf_is_loaded(b) then
+    return vim.api.nvim_buf_line_count(b)
+  end
+  return vim.fn.filereadable(path) == 1 and #vim.fn.readfile(path) or 0
+end
+
+local function sort_targets(targets)
+  table.sort(targets, function(a, b)
+    if a.file ~= b.file then
+      return a.file < b.file
+    end
+    return a._src_line < b._src_line
+  end)
+end
+
+local function new_shifts()
+  local shift = {}
+  return {
+    at = function(it)
+      return { file = it.file, _src_line = it._src_line + (shift[it.file] or 0) }
+    end,
+    moved = function(path, before)
+      shift[path] = (shift[path] or 0) + line_count(path) - before
+    end,
+  }
 end
 
 local function find_stamp_near(path, start_line, keyword)
   local lines = vim.fn.readfile(path)
   for i = start_line, math.min(start_line + 5, #lines) do
+    if i > start_line and heading_level(lines[i]) then
+      break
+    end
     local m = (lines[i] or ''):match(keyword .. ':%s*(<[^>]*>)')
     if m then
       return m
     end
   end
   return nil
-end
-
-local function open_loaded_datepicker(hl, keyword, bufnr)
-  local Calendar = require('orgmode.objects.calendar')
-  local Date = require('orgmode.objects.date')
-
-  local get_date = keyword == 'SCHEDULED' and 'get_scheduled_date' or 'get_deadline_date'
-  local set_date = keyword == 'SCHEDULED' and 'set_scheduled_date' or 'set_deadline_date'
-  local remove_date = keyword == 'SCHEDULED' and 'remove_scheduled_date' or 'remove_deadline_date'
-  local title = keyword == 'SCHEDULED' and 'Set schedule' or 'Set deadline'
-  local initial = hl._section and hl._section[get_date] and hl._section[get_date](hl._section) or Date.today()
-
-  return Calendar.new({ date = initial, clearable = true, title = title }):open():next(function(new_date, cleared)
-    if not new_date and not cleared then
-      return
-    end
-
-    return vim.api.nvim_buf_call(bufnr, function()
-      local view = vim.fn.winsaveview() or {}
-      vim.fn.cursor({ hl.position.start_line, 1 })
-
-      local org = require('orgmode')
-      local item = org.instance().files:get_closest_headline()
-      if not item then
-        error('orgmode date change target is unavailable', 0)
-      end
-
-      if cleared then
-        item[remove_date](item)
-      else
-        item[set_date](item, new_date)
-      end
-
-      vim.cmd('silent noautocmd write')
-      vim.fn.winrestview(view)
-      return true
-    end)
-  end)
-end
-
-local function open_headline_datepicker(hl, keyword)
-  local st = buf_status_for(hl.file.filename)
-  if st.loaded then
-    return open_loaded_datepicker(hl, keyword, st.bufnr)
-  end
-  if keyword == 'SCHEDULED' then
-    return hl:set_scheduled()
-  end
-  return hl:set_deadline()
 end
 
 -- Apply a date bulk-op: open datepicker on first_hl, then mirror result to all targets.
@@ -828,21 +513,25 @@ local function bulk_apply_date(targets, cur, first_hl, snap_first, keyword, open
     return
   end
 
-  local fname = hl_filename(first_hl)
-  local start_l = hl_start_line(first_hl)
+  local fname = first_hl.file
+  local start_l = first_hl.line
   if not (fname and start_l) then
     vim.notify('bulk_apply_date: cannot resolve headline path/line', vim.log.levels.WARN)
     return
   end
 
-  local st0 = buf_status_for(fname)
-  if (not st0.loaded) and has_swap_for(fname) then
-    notify_swap_conflict(fname, keyword)
-    return
+  for _, it in ipairs(targets) do
+    local blocked = it.file and guard.check_editable(it.file)
+    if blocked then
+      notify_action_error(keyword, blocked, it.file)
+      return
+    end
   end
 
   -- read planning stamp BEFORE the picker runs (to detect removal afterwards)
   local before_stamp = find_stamp_near(fname, start_l, keyword)
+  local shifts = new_shifts()
+  local first_lines = line_count(fname)
 
   local ok_p, p = pcall(open_picker, first_hl)
   if not ok_p then
@@ -854,15 +543,33 @@ local function bulk_apply_date(targets, cur, first_hl, snap_first, keyword, open
     return
   end
 
-  local function after_first()
+  local function after_first(result)
     local after_stamp = find_stamp_near(fname, start_l, keyword)
     local removed = (before_stamp ~= nil and after_stamp == nil)
+    local cancelled = type(result) == 'table' and result.cancelled
+    if cancelled or not (removed or after_stamp) then
+      return Services.agenda.refresh(cur)
+    end
     local restores = { make_restore_from_snapshot(snap_first) }
+    seal(snap_first)
+    shifts.moved(fname, first_lines)
+    local set_date = backend().set_date
 
     for i = 2, #targets do
-      local it = targets[i]
+      local it = shifts.at(targets[i])
       local path2, lnum2 = it.file, it._src_line
-      if path2 and lnum2 then
+      local before = path2 and line_count(path2)
+      local h2 = set_date and resolve_headline(it)
+      if h2 then
+        local snap2 = snapshot_heading_from_disk(path2, h2.line)
+        restores[#restores + 1] = make_restore_from_snapshot(snap2)
+        local _, err = set_date(h2, keyword, (not removed) and after_stamp or nil)
+        if err then
+          notify_action_error(keyword, err, path2)
+        end
+        seal(snap2)
+        shifts.moved(path2, before)
+      elseif path2 and lnum2 and not set_date then
         local snap2 = snapshot_heading_from_disk(path2, lnum2)
         restores[#restores + 1] = make_restore_from_snapshot(snap2)
         local flines = vim.fn.readfile(path2)
@@ -895,6 +602,8 @@ local function bulk_apply_date(targets, cur, first_hl, snap_first, keyword, open
             vim.cmd('silent noautocmd edit')
           end)
         end
+        seal(snap2)
+        shifts.moved(path2, before)
       end
     end
 
@@ -906,7 +615,7 @@ local function bulk_apply_date(targets, cur, first_hl, snap_first, keyword, open
   if p and type(p.next) == 'function' then
     p:next(after_first)
   else
-    after_first()
+    after_first(p)
   end
 end
 
@@ -936,65 +645,49 @@ local function bulk_action_menu(line_map)
     vim.notify('Marked items not found in current view.', vim.log.levels.WARN)
     return
   end
+  sort_targets(targets)
 
   -- resolve first headline + snapshot (needed for r/d datepicker actions)
   local first_hl, snap_first
   do
-    local ok_api, api_root = pcall(require, 'orgmode.api')
-    if ok_api then
-      local org_api = api_root.load and api_root or api_root.org
-      for _, it in ipairs(targets) do
-        local file = org_api.load(it.file)
-        if vim.islist(file) then
-          file = file[1]
+    for _, it in ipairs(targets) do
+      local hl = resolve_headline(it)
+      if hl then
+        first_hl = hl
+        local fname_hl = hl.file
+        local st = buf_status_for(fname_hl)
+        if st.loaded and st.modified then
+          vim.notify('File is open and modified; save first.', vim.log.levels.WARN)
+          return
         end
-        if file and file.get_headline_on_line then
-          local hl = file:get_headline_on_line(it._src_line)
-          if hl then
-            first_hl = hl
-            local fname_hl = hl_filename(hl)
-            local st = buf_status_for(fname_hl)
-            if st.loaded and st.modified then
-              vim.notify('File is open and modified; save first.', vim.log.levels.WARN)
-              return
-            end
-            snap_first = st.loaded and snapshot_heading_from_buf(hl) or snapshot_heading_from_disk(fname_hl, hl_start_line(hl))
-            break
-          end
-        end
+        snap_first = st.loaded and snapshot_heading_from_buf(hl) or snapshot_heading_from_disk(fname_hl, hl.line)
+        break
       end
     end
   end
 
   local function apply_bulk_state(next_state, cur)
     local restores = {}
-    for _, it in ipairs(targets) do
-      local hl_ok, api_root = pcall(require, 'orgmode.api')
-      if not hl_ok then
-        break
-      end
-      local org_api = api_root.load and api_root or api_root.org
-      local file = org_api.load(it.file)
-      if vim.islist(file) then
-        file = file[1]
-      end
-      if file and file.get_headline_on_line then
-        local hl = file:get_headline_on_line(it._src_line)
-        if hl then
-          local hl_fname = hl_filename(hl)
-          local st = buf_status_for(hl_fname)
-          local snap = st.loaded and snapshot_heading_from_buf(hl) or snapshot_heading_from_disk(hl_fname, hl_start_line(hl))
-          restores[#restores + 1] = make_restore_from_snapshot(snap)
-          local ok3, updated = apply_heading_state(hl, next_state)
-          if not ok3 then
-            notify_action_error('Bulk state change', updated, hl.file and hl.file.filename)
+    local shifts = new_shifts()
+    for _, target in ipairs(targets) do
+      local hl = resolve_headline(shifts.at(target))
+      if hl then
+        local hl_fname = hl.file
+        local st = buf_status_for(hl_fname)
+        local snap = st.loaded and snapshot_heading_from_buf(hl) or snapshot_heading_from_disk(hl_fname, hl.line)
+        restores[#restores + 1] = make_restore_from_snapshot(snap)
+        local before = line_count(hl_fname)
+        local ok3, updated = backend().set_state(hl, next_state)
+        seal(snap)
+        shifts.moved(hl_fname, before)
+        if not ok3 then
+          notify_action_error('Bulk state change', updated, hl.file)
+        else
+          local key = key_for_hl(updated or hl)
+          if updated and updated.done then
+            Store.sticky_add(key)
           else
-            local key = key_for_hl(updated or hl)
-            if updated and updated.todo_type == 'DONE' then
-              Store.sticky_add(key)
-            else
-              Store.sticky_remove(key)
-            end
+            Store.sticky_remove(key)
           end
         end
       end
@@ -1085,12 +778,12 @@ local function bulk_action_menu(line_map)
       elseif choice.key == 'r' then
         -- bulk reschedule: prompt once via first item, apply result to all
         bulk_apply_date(targets, cur, first_hl, snap_first, 'SCHEDULED', function(hl)
-          return open_headline_datepicker(hl, 'SCHEDULED')
+          return backend().pick_date(hl, 'SCHEDULED')
         end)
       elseif choice.key == 'd' then
         -- bulk deadline: same pattern
         bulk_apply_date(targets, cur, first_hl, snap_first, 'DEADLINE', function(hl)
-          return open_headline_datepicker(hl, 'DEADLINE')
+          return backend().pick_date(hl, 'DEADLINE')
         end)
       end
     end)
@@ -1117,12 +810,12 @@ local function bulk_action_menu(line_map)
     elseif c == 'r' then
       -- bulk reschedule: prompt once via first item, apply result to all
       bulk_apply_date(targets, cur, first_hl, snap_first, 'SCHEDULED', function(hl)
-        return open_headline_datepicker(hl, 'SCHEDULED')
+        return backend().pick_date(hl, 'SCHEDULED')
       end)
     elseif c == 'd' then
       -- bulk deadline: same pattern
       bulk_apply_date(targets, cur, first_hl, snap_first, 'DEADLINE', function(hl)
-        return open_headline_datepicker(hl, 'DEADLINE')
+        return backend().pick_date(hl, 'DEADLINE')
       end)
     end
   end
@@ -1161,8 +854,8 @@ function A.set_keymaps(buf, win, line_map, reopen)
     vim.keymap.set('n', cfg.keymaps.edit, function()
       with_headline(line_map, function(cur, hl)
         local agendabuf = vim.api.nvim_get_current_buf()
-        vim.cmd('edit ' .. vim.fn.fnameescape(hl.file.filename))
-        vim.api.nvim_win_set_cursor(0, { hl.position.start_line, 0 })
+        vim.cmd('edit ' .. vim.fn.fnameescape(hl.file))
+        vim.api.nvim_win_set_cursor(0, { hl.line, 0 })
         local filebuf = vim.api.nvim_get_current_buf()
         pcall(vim.api.nvim_buf_delete, agendabuf, { force = true })
 
@@ -1215,8 +908,8 @@ function A.set_keymaps(buf, win, line_map, reopen)
       if prev_win and vim.api.nvim_win_is_valid(prev_win) then
         vim.api.nvim_set_current_win(prev_win)
       end
-      vim.cmd('edit ' .. vim.fn.fnameescape(hl.file.filename))
-      vim.api.nvim_win_set_cursor(0, { hl.position.start_line, 0 })
+      vim.cmd('edit ' .. vim.fn.fnameescape(hl.file))
+      vim.api.nvim_win_set_cursor(0, { hl.line, 0 })
     end)
   end
 
@@ -1227,15 +920,15 @@ function A.set_keymaps(buf, win, line_map, reopen)
   -- reschedule / deadline (unchanged but undo-aware)
   vim.keymap.set('n', cfg.keymaps.reschedule, function()
     with_headline(line_map, function(cur, hl)
-      local path = hl.file.filename
+      local path = hl.file
       local st = buf_status_for(path)
       if (not st.loaded) and has_swap_for(path) then
         notify_swap_conflict(path, 'Reschedule')
         return
       end
-      local snap = st.loaded and snapshot_heading_from_buf(hl) or snapshot_heading_from_disk(path, hl.position.start_line)
+      local snap = st.loaded and snapshot_heading_from_buf(hl) or snapshot_heading_from_disk(path, hl.line)
       local ok_p, p = pcall(function()
-        return open_headline_datepicker(hl, 'SCHEDULED')
+        return backend().pick_date(hl, 'SCHEDULED')
       end)
       if not ok_p then
         if is_swap_error(p) then
@@ -1247,6 +940,7 @@ function A.set_keymaps(buf, win, line_map, reopen)
       end
       local function after()
         Store.push_undo(make_restore_from_snapshot(snap))
+        seal(snap)
         Services.agenda.refresh(cur)
       end
       if p and type(p.next) == 'function' then
@@ -1259,15 +953,15 @@ function A.set_keymaps(buf, win, line_map, reopen)
 
   vim.keymap.set('n', cfg.keymaps.set_deadline, function()
     with_headline(line_map, function(cur, hl)
-      local path = hl.file.filename
+      local path = hl.file
       local st = buf_status_for(path)
       if (not st.loaded) and has_swap_for(path) then
         notify_swap_conflict(path, 'Set deadline')
         return
       end
-      local snap = st.loaded and snapshot_heading_from_buf(hl) or snapshot_heading_from_disk(path, hl.position.start_line)
+      local snap = st.loaded and snapshot_heading_from_buf(hl) or snapshot_heading_from_disk(path, hl.line)
       local ok_p, p = pcall(function()
-        return open_headline_datepicker(hl, 'DEADLINE')
+        return backend().pick_date(hl, 'DEADLINE')
       end)
       if not ok_p then
         if is_swap_error(p) then
@@ -1279,6 +973,7 @@ function A.set_keymaps(buf, win, line_map, reopen)
       end
       local function after()
         Store.push_undo(make_restore_from_snapshot(snap))
+        seal(snap)
         Services.agenda.refresh(cur)
       end
       if p and type(p.next) == 'function' then
@@ -1310,19 +1005,11 @@ function A.set_keymaps(buf, win, line_map, reopen)
   local function make_set_priority(prio)
     return function()
       with_headline(line_map, function(cur, hl)
-        local st = buf_status_for(hl.file.filename)
-        local snap = st.loaded and snapshot_heading_from_buf(hl) or snapshot_heading_from_disk(hl.file.filename, hl.position.start_line)
-        Store.push_undo(make_restore_from_snapshot(snap))
-        local p = hl:set_priority(prio)
-        vim.defer_fn(function()
-          if p and type(p.next) == 'function' then
-            p:next(function()
-              Services.agenda.refresh(cur)
-            end)
-          else
-            Services.agenda.refresh(cur)
-          end
-        end, 10)
+        local st = buf_status_for(hl.file)
+        local snap = st.loaded and snapshot_heading_from_buf(hl) or snapshot_heading_from_disk(hl.file, hl.line)
+        apply_with_undo_snapshot(cur, snap, function()
+          return backend().set_priority(hl, prio)
+        end)
       end)
     end
   end
@@ -1333,37 +1020,21 @@ function A.set_keymaps(buf, win, line_map, reopen)
 
   vim.keymap.set('n', cfg.keymaps.priority_up, function()
     with_headline(line_map, function(cur, hl)
-      local st = buf_status_for(hl.file.filename)
-      local snap = st.loaded and snapshot_heading_from_buf(hl) or snapshot_heading_from_disk(hl.file.filename, hl.position.start_line)
-      Store.push_undo(make_restore_from_snapshot(snap))
-      local p = hl:priority_up()
-      vim.defer_fn(function()
-        if p and type(p.next) == 'function' then
-          p:next(function()
-            Services.agenda.refresh(cur)
-          end)
-        else
-          Services.agenda.refresh(cur)
-        end
-      end, 10)
+      local st = buf_status_for(hl.file)
+      local snap = st.loaded and snapshot_heading_from_buf(hl) or snapshot_heading_from_disk(hl.file, hl.line)
+      apply_with_undo_snapshot(cur, snap, function()
+        return backend().priority_up(hl)
+      end)
     end)
   end, { buffer = buf, silent = true })
 
   vim.keymap.set('n', cfg.keymaps.priority_down, function()
     with_headline(line_map, function(cur, hl)
-      local st = buf_status_for(hl.file.filename)
-      local snap = st.loaded and snapshot_heading_from_buf(hl) or snapshot_heading_from_disk(hl.file.filename, hl.position.start_line)
-      Store.push_undo(make_restore_from_snapshot(snap))
-      local p = hl:priority_down()
-      vim.defer_fn(function()
-        if p and type(p.next) == 'function' then
-          p:next(function()
-            Services.agenda.refresh(cur)
-          end)
-        else
-          Services.agenda.refresh(cur)
-        end
-      end, 10)
+      local st = buf_status_for(hl.file)
+      local snap = st.loaded and snapshot_heading_from_buf(hl) or snapshot_heading_from_disk(hl.file, hl.line)
+      apply_with_undo_snapshot(cur, snap, function()
+        return backend().priority_down(hl)
+      end)
     end)
   end, { buffer = buf, silent = true })
 
@@ -1441,7 +1112,7 @@ function A.set_keymaps(buf, win, line_map, reopen)
   if cfg.keymaps.clock_in and cfg.keymaps.clock_in ~= '' then
     vim.keymap.set('n', cfg.keymaps.clock_in, function()
       with_headline(line_map, function(cur, hl)
-        local p, err = clock_in_headline(hl)
+        local p, err = backend().clock_in(hl)
         if err then
           vim.notify(err, vim.log.levels.WARN)
           return
@@ -1460,7 +1131,7 @@ function A.set_keymaps(buf, win, line_map, reopen)
   if cfg.keymaps.clock_out and cfg.keymaps.clock_out ~= '' then
     vim.keymap.set('n', cfg.keymaps.clock_out, function()
       local cur = vim.api.nvim_win_get_cursor(0)
-      local p, err = clock_out_active()
+      local p, err = backend().clock_out()
       if err then
         vim.notify(err, vim.log.levels.WARN)
         return
@@ -1478,7 +1149,7 @@ function A.set_keymaps(buf, win, line_map, reopen)
   if cfg.keymaps.clock_cancel and cfg.keymaps.clock_cancel ~= '' then
     vim.keymap.set('n', cfg.keymaps.clock_cancel, function()
       local cur = vim.api.nvim_win_get_cursor(0)
-      local p, err = clock_cancel_active()
+      local p, err = backend().clock_cancel()
       if err then
         vim.notify(err, vim.log.levels.WARN)
         return
@@ -1497,7 +1168,7 @@ function A.set_keymaps(buf, win, line_map, reopen)
     vim.keymap.set('n', cfg.keymaps.clock_goto, function()
       local agendabuf = vim.api.nvim_get_current_buf()
       local cur = vim.api.nvim_win_get_cursor(0)
-      local jumped, err = clock_goto_active()
+      local jumped, err = backend().clock_goto()
       if err then
         vim.notify(err, vim.log.levels.WARN)
         return
@@ -1576,7 +1247,7 @@ function A.set_keymaps(buf, win, line_map, reopen)
       end
       local idx = 0
       for i, v in ipairs(seq) do
-        if v == (hl.todo_value or '') then
+        if v == (hl.todo or '') then
           idx = i
           break
         end
@@ -1584,18 +1255,19 @@ function A.set_keymaps(buf, win, line_map, reopen)
       local next_state = seq[idx % #seq + 1]
 
       -- Take snapshot without forcing buffer load if possible
-      local st = buf_status_for(hl.file.filename)
-      local snap = st.loaded and snapshot_heading_from_buf(hl) or snapshot_heading_from_disk(hl.file.filename, hl.position.start_line)
+      local st = buf_status_for(hl.file)
+      local snap = st.loaded and snapshot_heading_from_buf(hl) or snapshot_heading_from_disk(hl.file, hl.line)
       Store.push_undo(make_restore_from_snapshot(snap))
 
-      local ok, updated = apply_heading_state(hl, next_state)
+      local ok, updated = backend().set_state(hl, next_state)
+      seal(snap)
       if not ok then
-        notify_action_error('Cycle TODO', updated, hl.file and hl.file.filename)
+        notify_action_error('Cycle TODO', updated, hl.file)
         return
       end
 
       local key = key_for_hl(updated)
-      if updated.todo_type == 'DONE' then
+      if updated.done then
         Store.sticky_add(key)
       else
         Store.sticky_remove(key)
@@ -1614,11 +1286,10 @@ function A.set_keymaps(buf, win, line_map, reopen)
   if cfg.keymaps.refile and cfg.keymaps.refile ~= '' then
     vim.keymap.set('n', cfg.keymaps.refile, function()
       with_headline(line_map, function(_, hl)
-        local pos = hl.position
-        if not (pos and pos.start_line and pos.end_line and hl.level) then
-          return vim.notify('Cannot refile: missing position info from orgmode.', vim.log.levels.WARN)
+        if not (hl.line and hl.end_line and hl.level) then
+          return vim.notify('Cannot refile: missing position info from the org backend.', vim.log.levels.WARN)
         end
-        Services.refile_start(hl.file.filename, pos.start_line, pos.end_line, hl.level)
+        Services.refile_start(hl.file, hl.line, hl.end_line, hl.level)
       end)
     end, { buffer = buf, silent = true })
   end
