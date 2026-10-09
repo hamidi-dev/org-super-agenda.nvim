@@ -1,53 +1,48 @@
 name: CI
-
 on:
   push:
     branches: [main, develop]
   pull_request:
     branches: [main, develop]
-
 jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Install stylua
         uses: JohnnyMorganz/stylua-action@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           version: latest
           args: --check lua/ tests/
-
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     strategy:
       matrix:
         nvim-version: ['stable', 'nightly']
-    
     steps:
       - uses: actions/checkout@v4
-      
       - name: Install Neovim ${{ matrix.nvim-version }}
         uses: rhysd/action-setup-vim@v1
         with:
           neovim: true
           version: ${{ matrix.nvim-version }}
-      
       - name: Install plenary.nvim
         run: |
           mkdir -p ~/.local/share/nvim/site/pack/vendor/start
           git clone --depth 1 https://github.com/nvim-lua/plenary.nvim.git \
             ~/.local/share/nvim/site/pack/vendor/start/plenary.nvim
-      
+      - name: Install org.nvim (backend integration tests)
+        run: |
+          git clone --depth 1 --branch v2.6.1 https://github.com/xheisenbugx/org.nvim.git \
+            ~/.local/share/nvim/site/pack/vendor/start/org.nvim
       - name: Run tests
         timeout-minutes: 3
         run: |
           nvim --version
           nvim --headless -u tests/helpers/min.lua \
             -c "PlenaryBustedDirectory tests/ { minimal_init = 'tests/helpers/min.lua' }"
-      
       - name: Check test results
         if: failure()
         run: echo "Tests failed!"

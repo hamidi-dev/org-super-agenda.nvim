@@ -5,19 +5,10 @@ local get_cfg = require('org-super-agenda.config').get
 local V = { _buf = nil, _win = nil, _prev_win = nil, _line_map = {}, _ns = vim.api.nvim_create_namespace('OrgSuperAgenda') }
 
 local function active_clock_status()
-  local ok, org = pcall(require, 'orgmode')
-  if not ok or type(org.instance) ~= 'function' then
-    return ''
-  end
-  local ok_inst, inst = pcall(org.instance)
-  if not ok_inst or not inst or not inst.clock or type(inst.clock.get_statusline) ~= 'function' then
-    return ''
-  end
-  local ok_status, status = pcall(inst.clock.get_statusline, inst.clock)
-  if not ok_status or type(status) ~= 'string' then
-    return ''
-  end
-  return status
+  local ok, status = pcall(function()
+    return require('org-super-agenda.adapters.neovim.backend').get().clock_status()
+  end)
+  return ok and type(status) == 'string' and status or ''
 end
 
 function V.is_open()
