@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.2.0](https://github.com/hamidi-dev/org-super-agenda.nvim/compare/v2.1.0...v2.2.0) (2026-10-10)
+
+### Features
+
+* add org.nvim as a second backend ([f48af4b](https://github.com/hamidi-dev/org-super-agenda.nvim/commit/f48af4bcc19cd9302a70ee1efeb08470c908f7e8))
+
+### Bug Fixes
+
+* avoid bulk action priority keymap conflict [#24](https://github.com/hamidi-dev/org-super-agenda.nvim/issues/24) ([37e7712](https://github.com/hamidi-dev/org-super-agenda.nvim/commit/37e7712a8b11ef0e3386012a3c51c4f9ad1b7e8f))
+
 ## [2.1.0](https://github.com/hamidi-dev/org-super-agenda.nvim/compare/v2.0.0...v2.1.0) (2026-08-19)
 
 ### Features
