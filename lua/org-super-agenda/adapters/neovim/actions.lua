@@ -287,6 +287,33 @@ local function with_headline(line_map, cb)
   cb(cur, hl)
 end
 
+-- Following a file link opens it in "another window" (org.nvim's default,
+-- like Emacs). From a float that is the normal window underneath, and the
+-- float would keep covering it. Close the float once focus lands in a normal
+-- window; floats such as pickers opened from it leave it alone.
+local function close_float_on_leave(win, before_close)
+  if vim.api.nvim_win_get_config(win).relative == '' then
+    return
+  end
+  local group = vim.api.nvim_create_augroup('OrgSuperAgendaFloat' .. win, { clear = true })
+  vim.api.nvim_create_autocmd('WinEnter', {
+    group = group,
+    callback = function()
+      local cur = vim.api.nvim_get_current_win()
+      if vim.api.nvim_win_is_valid(win) and (cur == win or vim.api.nvim_win_get_config(cur).relative ~= '') then
+        return
+      end
+      pcall(vim.api.nvim_del_augroup_by_id, group)
+      if vim.api.nvim_win_is_valid(win) then
+        if before_close then
+          before_close()
+        end
+        pcall(vim.api.nvim_win_close, win, true)
+      end
+    end,
+  })
+end
+
 local function preview_headline(line_map)
   with_headline(line_map, function(_, hl)
     local lines = backend().section_lines(hl) or {}
@@ -295,6 +322,8 @@ local function preview_headline(line_map)
     end
     local buf = vim.api.nvim_create_buf(false, true)
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+    -- The preview has no file name: resolve relative links against the source file.
+    vim.b[buf].org_base_dir = vim.fn.fnamemodify(hl.file, ':p:h')
     vim.bo[buf].filetype = 'org'
     local ui = vim.api.nvim_list_uis()[1]
     local h = math.min(#lines + 2, math.floor(ui.height * 0.6))
@@ -315,6 +344,7 @@ local function preview_headline(line_map)
       end
     end
     vim.keymap.set('n', 'q', close, { buffer = buf, silent = true })
+    close_float_on_leave(win)
   end)
 end
 
@@ -869,7 +899,7 @@ function A.set_keymaps(buf, win, line_map, reopen)
           vim.keymap.set('n', k, close_file, { buffer = filebuf, silent = true })
         end
 
-        vim.api.nvim_create_autocmd('BufWinLeave', {
+        local reopen_au = vim.api.nvim_create_autocmd('BufWinLeave', {
           buffer = filebuf,
           once = true,
           callback = function()
@@ -879,6 +909,11 @@ function A.set_keymaps(buf, win, line_map, reopen)
             end)
           end,
         })
+        -- Followed a link out of the float: stay there, don't bring the agenda back.
+        close_float_on_leave(vim.api.nvim_get_current_win(), function()
+          pcall(vim.api.nvim_del_autocmd, reopen_au)
+          require('org-super-agenda').on_close()
+        end)
       end)
     end, { buffer = buf, silent = true })
   end

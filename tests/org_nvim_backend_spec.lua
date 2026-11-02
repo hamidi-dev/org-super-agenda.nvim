@@ -622,4 +622,85 @@ describe_org('org.nvim backend', function()
     local h = backend.headline(path, 1)
     assert.are.same({ '* TODO Task', 'notes', '** TODO Sub' }, backend.section_lines(h))
   end)
+
+  describe('following a link out of an agenda float', function()
+    local normal
+
+    -- Returns this agenda's reopen counter; a per-test table keeps a stray
+    -- reopen from an earlier test out of this one's count.
+    local function float_agenda(path, line)
+      local reopened = { n = 0 }
+      local buf = vim.api.nvim_create_buf(false, true)
+      vim.api.nvim_buf_set_lines(buf, 0, -1, false, { 'agenda row' })
+      local win = vim.api.nvim_open_win(buf, true, { relative = 'editor', row = 1, col = 1, width = 60, height = 10 })
+      Actions.set_keymaps(buf, win, { [1] = { file = path, _src_line = line } }, function()
+        reopened.n = reopened.n + 1
+      end)
+      return reopened
+    end
+
+    local function run(lhs)
+      vim.fn.maparg(lhs, 'n', false, true).callback()
+    end
+
+    local function floats()
+      return vim.tbl_filter(function(w)
+        return vim.api.nvim_win_get_config(w).relative ~= ''
+      end, vim.api.nvim_list_wins())
+    end
+
+    local function follow_link_on(lnum)
+      vim.api.nvim_win_set_cursor(0, { lnum, 0 })
+      require('org.links').open_at_point()
+      vim.wait(50)
+    end
+
+    before_each(function()
+      normal = vim.api.nvim_get_current_win()
+      write('target.org', { '* Target' })
+    end)
+
+    after_each(function()
+      for _, w in ipairs(floats()) do
+        pcall(vim.api.nvim_win_close, w, true)
+      end
+    end)
+
+    it('closes the edit float and stays in the target', function()
+      local path = write('entry.org', { '#+title: Entry', '* TODO Read', '[[file:target.org][Target]]' })
+      local reopened = float_agenda(path, 2)
+      run('<CR>')
+      assert.equals(path, vim.api.nvim_buf_get_name(0))
+      follow_link_on(3)
+      assert.are.same({}, floats())
+      assert.equals(normal, vim.api.nvim_get_current_win())
+      assert.equals(dir .. '/target.org', vim.api.nvim_buf_get_name(0))
+      assert.equals(0, reopened.n)
+    end)
+
+    it('still reopens the agenda when the edited file is closed with q', function()
+      local path = write('entry.org', { '* TODO Read' })
+      local reopened = float_agenda(path, 1)
+      run('<CR>')
+      run('q')
+      vim.wait(50)
+      assert.equals(1, reopened.n)
+    end)
+
+    it('resolves preview links against the source file and closes the preview', function()
+      local path = write('entry.org', { '* TODO Read', '[[file:target.org][Target]]' })
+      float_agenda(path, 1)
+      local list_uis = vim.api.nvim_list_uis
+      vim.api.nvim_list_uis = function() -- headless: the preview sizes itself from the UI
+        return { { width = 120, height = 40 } }
+      end
+      local ok, err = pcall(run, config.get().keymaps.preview)
+      vim.api.nvim_list_uis = list_uis
+      assert(ok, err)
+      follow_link_on(2)
+      assert.equals(dir .. '/target.org', vim.api.nvim_buf_get_name(0))
+      assert.equals('', vim.api.nvim_win_get_config(0).relative)
+      assert.equals(1, #floats()) -- only the agenda float stays open
+    end)
+  end)
 end)
